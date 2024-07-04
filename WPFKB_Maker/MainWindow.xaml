@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:WPFKB_Maker"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800"
+        Title="MainWindow" Height="800" Width="788"
         MinHeight="450"
         MinWidth="800"
     xmlns:theme="clr-namespace:Microsoft.Windows.Themes;assembly=PresentationFramework.Aero2">
@@ -199,7 +199,7 @@
             </Style.Triggers>
         </Style>
     </Window.Resources>
-    
+
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition MinHeight="46" Height="46"/>
@@ -222,41 +222,54 @@
                 </MenuItem>
             </Menu>
 
-            <ToolBarTray DockPanel.Dock="Top" Background="#FFF1F1F1">
-                <ToolBar Style="{DynamicResource ToolBarStyle}">
-                    <Button>
-                        <TextBlock Text="2" LineStackingStrategy="BlockLineHeight" FontFamily="Wingdings"/>
-                    </Button>
-                    <Button>
-                        <TextBlock Text="0" LineStackingStrategy="BlockLineHeight" FontFamily="Wingdings"/>
-                    </Button>
-                    <Button>
-                        <TextBlock Text="&lt;" LineStackingStrategy="BlockLineHeight" FontFamily="Wingdings"/>
-                    </Button>
-                    <Button>
-                        <TextBlock Text="@" LineStackingStrategy="BlockLineHeight" FontFamily="Webdings"/>
-                    </Button>
-                </ToolBar>
-                <ToolBar Style="{DynamicResource ToolBarStyle}">
-                    <Button>
-                        <TextBlock Text="9" LineStackingStrategy="BlockLineHeight" FontFamily="Webdings"/>
-                    </Button>
-                    <Button>
-                        <TextBlock Text="7" LineStackingStrategy="BlockLineHeight" FontFamily="Webdings"/>
-                    </Button>
-                    <Button>
-                        <TextBlock Text="4" LineStackingStrategy="BlockLineHeight" FontFamily="Webdings"/>
-                    </Button>
-                    <Button>
-                        <TextBlock Text="8" LineStackingStrategy="BlockLineHeight" FontFamily="Webdings"/>
-                    </Button>
-                    <Button>
-                        <TextBlock Text=":" LineStackingStrategy="BlockLineHeight" FontFamily="Webdings"/>
-                    </Button>
-                </ToolBar>
-            </ToolBarTray>
+            <DockPanel DockPanel.Dock="Top">
+                <ToolBarTray DockPanel.Dock="Left" Background="#FFF1F1F1">
+                    <ToolBar Style="{DynamicResource ToolBarStyle}">
+                        <Button>
+                            <TextBlock Text="2" LineStackingStrategy="BlockLineHeight" FontFamily="Wingdings"/>
+                        </Button>
+                        <Button>
+                            <TextBlock Text="0" LineStackingStrategy="BlockLineHeight" FontFamily="Wingdings"/>
+                        </Button>
+                        <Button>
+                            <TextBlock Text="&lt;" LineStackingStrategy="BlockLineHeight" FontFamily="Wingdings"/>
+                        </Button>
+                        <Button>
+                            <TextBlock Text="@" LineStackingStrategy="BlockLineHeight" FontFamily="Webdings"/>
+                        </Button>
+                    </ToolBar>
+                    <ToolBar Style="{DynamicResource ToolBarStyle}">
+                        <Button>
+                            <TextBlock Text="9" LineStackingStrategy="BlockLineHeight" FontFamily="Webdings"/>
+                        </Button>
+                        <Button>
+                            <TextBlock Text="7" LineStackingStrategy="BlockLineHeight" FontFamily="Webdings"/>
+                        </Button>
+                        <Button>
+                            <TextBlock Text="4" LineStackingStrategy="BlockLineHeight" FontFamily="Webdings"/>
+                        </Button>
+                        <Button>
+                            <TextBlock Text="8" LineStackingStrategy="BlockLineHeight" FontFamily="Webdings"/>
+                        </Button>
+                        <Button>
+                            <TextBlock Text=":" LineStackingStrategy="BlockLineHeight" FontFamily="Webdings"/>
+                        </Button>
+                    </ToolBar>
+                </ToolBarTray>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="250"/>
+                        <ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+
+                    <DockPanel Grid.Column="0">
+                        <Slider x:Name="zoomSlider" VerticalAlignment="Center" DockPanel.Dock="Left" MinWidth="160" Minimum="0.5" Maximum="4.0" ValueChanged="ZoomChanged"/>
+                        <TextBlock x:Name="zoomText" Text="缩放：1.0|4.0" DockPanel.Dock="Left" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    </DockPanel>
+                </Grid>
+            </DockPanel>
         </DockPanel>
-        
+
         <GridSplitter Grid.Row="0" HorizontalAlignment="Stretch" VerticalAlignment="Bottom" Height="1" Background="Transparent" IsEnabled="False"></GridSplitter>
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
@@ -265,7 +278,11 @@
             </Grid.ColumnDefinitions>
 
             <Border Grid.Column="0" BorderBrush="Black" BorderThickness="0,1,1,1" Name="rendererBorder">
-                <Image x:Name="renderer" Stretch="UniformToFill"/>
+                <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden">
+                    <Canvas Name="imageCanvas" MouseWheel="ScrollSheetRenderer">
+                        <Image x:Name="renderer" Stretch="Uniform"/>
+                    </Canvas>
+                </ScrollViewer>
             </Border>
             <Border Grid.Column="1" BorderBrush="Black" BorderThickness="0,1,1,1">
                 <StackPanel>
@@ -280,6 +297,7 @@
                 <StatusBarItem Name="projectName" Style="{StaticResource BottomStatusItem}">项目名称</StatusBarItem>
                 <StatusBarItem Name="currentBpm" Style="{StaticResource BottomStatusItem}">bpm</StatusBarItem>
                 <StatusBarItem Style="{StaticResource BottomStatusItem}">by MC_Daxia1472, TFSGameStudio</StatusBarItem>
+                <StatusBarItem/>
             </StatusBar>
         </Grid>
     </Grid>
