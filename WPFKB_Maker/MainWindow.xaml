@@ -279,14 +279,15 @@
 
             <Border Grid.Column="0" BorderBrush="Black" BorderThickness="0,1,1,1" Name="rendererBorder">
                 <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden">
-                    <Canvas Name="imageCanvas" MouseWheel="ScrollSheetRenderer">
+                    <Canvas Name="imageCanvas" MouseWheel="ScrollSheetRenderer" MouseDown="HandleNoteProcessing">
                         <Image x:Name="renderer" Stretch="Uniform"/>
                     </Canvas>
                 </ScrollViewer>
             </Border>
             <Border Grid.Column="1" BorderBrush="Black" BorderThickness="0,1,1,1">
                 <StackPanel>
-                    <!--Tools here-->
+                    <ToggleButton x:Name="hitModeButton" Content="HIT" Height="30"/>
+                    <ToggleButton x:Name="holdModeButton" Content="HOLD" Height="30"/>
                 </StackPanel>
             </Border>
         </Grid>

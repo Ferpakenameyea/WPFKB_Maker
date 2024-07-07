@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using WPFKB_Maker.TFS;
 
 namespace WPFKB_Maker
@@ -15,6 +17,8 @@ namespace WPFKB_Maker
         {
             public void Clean() => DebugConsole.Console?.Clean();
             public void Write(object content) => DebugConsole.Console?.Write(content);
+
+            public void WriteFromNotMainThread(object content) => DebugConsole.Console?.WriteFromNotMainThread(content);
         }
     }
 
@@ -36,6 +40,7 @@ namespace WPFKB_Maker
     {
         void Clean();
         void Write(object content);
+        void WriteFromNotMainThread(object content);
     }
 
     public class TextBlockConsole : UIConsole
@@ -47,6 +52,7 @@ namespace WPFKB_Maker
 
         internal int ReserveLines { get; set; }
         internal int CleanTrigger { get; set; }
+        private Queue<object> pendingMessages = new Queue<object>();
 
         public TextBlockConsole(ScrollViewer scrollViewer, TextBlock textBlock, int reserveLines = 100, int cleanTrigger = 200)
         {
@@ -54,6 +60,16 @@ namespace WPFKB_Maker
             this.ReserveLines = reserveLines;
             this.CleanTrigger = cleanTrigger;
             this.scrollViewer = scrollViewer;
+
+            CompositionTarget.Rendering += FlushPending;
+        }
+
+        private void FlushPending(object sender, EventArgs e)
+        {
+            while(this.pendingMessages.Count > 0)
+            {
+                this.Write(this.pendingMessages.Dequeue());
+            }
         }
 
         public void Clean()
@@ -86,6 +102,11 @@ namespace WPFKB_Maker
             }
 
             this.scrollViewer.ScrollToEnd();
+        }
+
+        public void WriteFromNotMainThread(object content)
+        {
+            this.pendingMessages.Enqueue(content);
         }
 
         public void Write(object content)
