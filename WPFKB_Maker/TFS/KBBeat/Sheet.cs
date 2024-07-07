@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -36,6 +37,7 @@ namespace WPFKB_Maker.TFS.KBBeat
             this.LeftSize = leftSize;
             this.RightSize = rightSize;
         }
+        public abstract ICollection<Note> Values { get; }
     }
 
     public class HashSheet : Sheet
@@ -67,7 +69,10 @@ namespace WPFKB_Maker.TFS.KBBeat
                 return false;
             }
         }
+
+        public override ICollection<Note> Values => this.notes.Values;
     }
+    [Obsolete]
     public class ConcurrentHashSheet : HashSheet
     {
         private ReaderWriterLockSlim rwlock = new ReaderWriterLockSlim(LockRecursionPolicy.NoRecursion);

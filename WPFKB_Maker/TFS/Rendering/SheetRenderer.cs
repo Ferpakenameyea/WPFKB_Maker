@@ -3,6 +3,7 @@ using System.CodeDom;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -59,7 +60,7 @@ namespace WPFKB_Maker.TFS
             }
         }
 
-        public Sheet Sheet { get; set; } = new ConcurrentHashSheet(6, 3, 3);
+        public Sheet Sheet { get; set; } = new HashSheet(6, 3, 3);
 
         public double BitmapWidth { get => this.bitmap.Width; }
         public double BitmapHeight { get => this.bitmap.Height; }
@@ -107,15 +108,9 @@ namespace WPFKB_Maker.TFS
             }
         }
         public double RenderFromY { get; set; } = 0.0;
-
         public long RenderIntervalMilliseconds { get; private set; } = 0;
         private readonly Stopwatch stopwatch = new Stopwatch();
-
-        #region Concurrent
-        private Queue<Note> notesToRender = new Queue<Note>();
-        private List<Task> tasks = new List<Task>() { Capacity = 20 };
-        #endregion
-
+        public List<Note> NotesToRender { get; set; } = new List<Note>();
         public SheetRenderStyle Style { get; set; } = new SheetRenderStyle()
         {
             BackgroundBrush = Brushes.LightGray,
@@ -168,11 +163,28 @@ namespace WPFKB_Maker.TFS
         }
         private void OnRender(object sender, EventArgs e)
         {
+            this.NotesToRender.Clear();
             if (stopwatch.ElapsedMilliseconds < this.RenderIntervalMilliseconds)
             {
                 return;
             }
 
+            var renderFromRow = this.RenderFromRow;
+            var renderToRow = this.RenderToRow;
+            Task task = Task.Run(() =>
+            {
+                var query = from note in this.Sheet.Values
+                            where
+                                ShouldRenderNote(note, renderFromRow, renderToRow)
+                            select note;
+                lock(this.Sheet)
+                {
+                    foreach( var note in query )
+                    {
+                        this.NotesToRender.Add(note);
+                    }
+                }
+            });
 
             using (var context = this.drawingVisual.RenderOpen())
             {
@@ -181,6 +193,7 @@ namespace WPFKB_Maker.TFS
                     this.DrawSheet(context, this.Sheet);
                     this.DrawTriggerLine(context);
                     this.DrawSelector(context);
+                    task.Wait();
                     this.DrawNotes(context);
                 }
             }
@@ -188,6 +201,18 @@ namespace WPFKB_Maker.TFS
             this.bitmap.Clear();
             this.bitmap.Render(this.drawingVisual);
             stopwatch.Restart();
+        }
+        private bool ShouldRenderNote(Note note, int start, int end)
+        {
+            if (note is HitNote)
+            {
+                return note.BasePosition.Item1 >= start && note.BasePosition.Item1 <= end;
+            }
+
+            var hold = note as HoldNote;
+            return 
+                (hold.BasePosition.Item1 >= start && hold.BasePosition.Item1 <= end) ||
+                (hold.End.Item1 >= start && hold.End.Item1 <= end);
         }
         private Point NotePositionToBitmapPoint((int, int) position)
         {
@@ -225,7 +250,7 @@ namespace WPFKB_Maker.TFS
         private void DrawSelector(DrawingContext context)
         {
 
-            this.Selector = this.strategy.Agent.GetPosition(this);
+            this.Selector = this.strategy.Agent.GetMousePosition(this);
             if (Selector == null)
             {
                 return;
@@ -242,48 +267,9 @@ namespace WPFKB_Maker.TFS
                 Style.SelectorProvider(rectCenter)
                 );
         }
-        [Obsolete]
         private void DrawNotes(DrawingContext context)
         {
-            this.tasks.Clear();
-            this.notesToRender.Clear();
-            int hiddenRowStart = (int)Math.Ceiling(this.RenderFromY / this.BitmapVerticalHiddenRowDistance);
-            double y = this.BitmapHeight - (hiddenRowStart * this.BitmapVerticalHiddenRowDistance - this.RenderFromY);
-            var bitmapVerticalHiddenRowDistance = this.BitmapVerticalHiddenRowDistance;
-            for (int i = 0; i < this.Sheet.Column; i++)
-            {
-                int thisTaskColumn = i;
-                int thisTaskRow = hiddenRowStart;
-                double thisTaskY = y;
-                tasks.Add(Task.Run(() =>
-                {
-                    while(thisTaskY >= 0)
-                    {
-                        var note = this.Sheet.GetNote(thisTaskRow, thisTaskColumn);
-                        if (note != null)
-                        {
-                            lock(this.notesToRender)
-                            {
-                                this.notesToRender.Enqueue(note);
-                            }
-                        }
-                        thisTaskY -= bitmapVerticalHiddenRowDistance;
-                        thisTaskRow++;
-                    }
-                }));
-            }
-            foreach (var task in tasks)
-            {
-                task.Wait();
-            }
-            while(notesToRender.Count > 0)
-            {
-                RenderNote(context, notesToRender.Dequeue());
-            }
-        }
-        private void DrawNotes(DrawingContext context, Func<Queue<Note>> notesProvider)
-        {
-
+            NotesToRender.ForEach((note) => RenderNote(context, note));
         }
         private void RenderNote(DrawingContext context, Note note)
         {
@@ -304,7 +290,7 @@ namespace WPFKB_Maker.TFS
                 var rect1 = Style.NoteProvider(this.NotePositionToBitmapPoint(holdnote.Start));
                 var rect2 = Style.NoteProvider(this.NotePositionToBitmapPoint(holdnote.End));
 
-                var finalRect = new Rect(rect1.TopLeft, rect2.BottomRight);
+                var finalRect = new Rect(rect1.BottomLeft, rect2.TopRight);
 
                 context.DrawRectangle(
                     Style.NoteBrush,
@@ -350,7 +336,36 @@ namespace WPFKB_Maker.TFS
         public abstract InteractAgent Agent { get; }
         public abstract class InteractAgent
         {
-            public abstract (int, int)? GetPosition(SheetRenderer sheetRenderer);
+            public (int, int)? GetMousePosition(SheetRenderer sheetRenderer)
+            {
+                var pos = Mouse.GetPosition(sheetRenderer.Image);
+                pos.X *= sheetRenderer.BitmapWidth / sheetRenderer.ImageWidth;
+                pos.Y *= sheetRenderer.BitmapHeight / sheetRenderer.ImageHeight;
+
+                if (pos.X < 0 || pos.Y < 0 || pos.X > sheetRenderer.BitmapWidth || pos.Y > sheetRenderer.BitmapHeight)
+                {
+                    return null;
+                }
+
+                return GetPositionBitmap(sheetRenderer, pos);
+            }
+            public abstract (int, int)? GetPositionBitmap(SheetRenderer sheetRenderer, Point bitmapPosition);
+            public (int, int)? GetPositionScreen(SheetRenderer sheetRenderer, Point screenPosition)
+            {
+                var bitmapPosition = Mouse.GetPosition(sheetRenderer.Image);
+                bitmapPosition.X *= sheetRenderer.BitmapWidth / sheetRenderer.ImageWidth;
+                bitmapPosition.Y *= sheetRenderer.BitmapHeight / sheetRenderer.ImageHeight;
+
+                if (bitmapPosition.X < 0 ||
+                    bitmapPosition.Y < 0 ||
+                    bitmapPosition.X > sheetRenderer.BitmapWidth ||
+                    bitmapPosition.Y > sheetRenderer.BitmapHeight)
+                {
+                    return null;
+                }
+
+                return GetPositionBitmap(sheetRenderer, bitmapPosition);
+            }
         }
     }
 
@@ -431,24 +446,14 @@ namespace WPFKB_Maker.TFS
         public override InteractAgent Agent => agent;
         private class Agent_1_4 : InteractAgent
         {
-            public override (int, int)? GetPosition(SheetRenderer sheetRenderer)
+            public override (int, int)? GetPositionBitmap(SheetRenderer sheetRenderer, Point bitmapPosition)
             {
-                var pos = Mouse.GetPosition(sheetRenderer.Image);
-                pos.X *= sheetRenderer.BitmapWidth / sheetRenderer.ImageWidth;
-                pos.Y *= sheetRenderer.BitmapHeight / sheetRenderer.ImageHeight;
-
-                if (pos.X < 0 || pos.Y < 0 || pos.X > sheetRenderer.BitmapWidth || pos.Y > sheetRenderer.BitmapHeight)
-                {
-                    return null;
-                }
-
-                var absolute = new Point(pos.X, sheetRenderer.BitmapHeight - pos.Y + sheetRenderer.RenderFromY);
+                var absolute = new Point(bitmapPosition.X, sheetRenderer.BitmapHeight - bitmapPosition.Y + sheetRenderer.RenderFromY);
 
                 var result = (
                     (int)Math.Round(absolute.Y / sheetRenderer.BitmapVerticalRenderDistance) * 24,
                     (int)Math.Floor(absolute.X / sheetRenderer.BitmapColumnWidth)
                     );
-
                 return result;
             }
         }

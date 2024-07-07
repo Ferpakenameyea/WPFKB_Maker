@@ -279,8 +279,13 @@
 
             <Border Grid.Column="0" BorderBrush="Black" BorderThickness="0,1,1,1" Name="rendererBorder">
                 <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden">
-                    <Canvas Name="imageCanvas" MouseWheel="ScrollSheetRenderer" MouseDown="HandleNoteProcessing">
+                    <Canvas Name="imageCanvas" 
+                            MouseWheel="ScrollSheetRenderer" 
+                            MouseDown="CanvasMouseDown"
+                            MouseUp="CanvasMouseUp"
+                            MouseMove="CanvasMouseMove">
                         <Image x:Name="renderer" Stretch="Uniform"/>
+                        <Rectangle x:Name="draggingBox" Fill="#6646A8F7" Stroke="#9917A4CB" Visibility="Hidden"/>
                     </Canvas>
                 </ScrollViewer>
             </Border>
