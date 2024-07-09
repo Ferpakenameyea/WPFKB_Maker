@@ -10,6 +10,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using WPFKB_Maker.TFS.KBBeat;
+using WPFKB_Maker.TFS.Rendering;
 
 namespace WPFKB_Maker.TFS
 {
@@ -19,7 +20,7 @@ namespace WPFKB_Maker.TFS
 
         private RenderTargetBitmap bitmap;
         private readonly DrawingVisual drawingVisual = new DrawingVisual();
-
+        
         private double dpiX;
         private double dpiY;
 
@@ -172,7 +173,7 @@ namespace WPFKB_Maker.TFS
             CompositionTarget.Rendering += this.OnRender;
             this.stopwatch.Start();
         }
-        private void OnRender(object sender, EventArgs e)
+        private async void OnRender(object sender, EventArgs e)
         {
             this.NotesToRender.Clear();
             if (stopwatch.ElapsedMilliseconds < this.RenderIntervalMilliseconds)
@@ -184,7 +185,7 @@ namespace WPFKB_Maker.TFS
             var renderToRow = this.RenderToRow;
             Task task = Task.Run(() =>
             {
-                var query = from note in this.Sheet.Values
+                var query = from note in this.Sheet.Values.AsParallel()
                             where
                                 ShouldRenderNote(note, renderFromRow, renderToRow)
                             select note;
@@ -204,7 +205,7 @@ namespace WPFKB_Maker.TFS
                     this.DrawSheet(context, this.Sheet);
                     this.DrawTriggerLine(context);
                     this.DrawSelector(context);
-                    task.Wait();
+                    await task.ConfigureAwait(true);
                     this.DrawNotes(context);
                 }
             }
