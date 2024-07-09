@@ -1,11 +1,9 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using System;
+using System.CodeDom;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
-using System.Windows.Media;
 
 namespace WPFKB_Maker.TFS.KBBeat
 {
@@ -28,7 +26,7 @@ namespace WPFKB_Maker.TFS.KBBeat
             {
                 throw new ArgumentException("Sum of leftSize and rightSize must equal with column");
             }
-            
+
             if (leftSize < 0 || rightSize < 0)
             {
                 throw new ArgumentException("Can't have negative group size");
@@ -38,10 +36,36 @@ namespace WPFKB_Maker.TFS.KBBeat
             this.RightSize = rightSize;
         }
         public abstract ICollection<Note> Values { get; }
+        public void WriteJsonData(JsonWriter jsonWriter, JsonSerializer jsonSerializer)
+        {
+            jsonWriter.WriteStartArray();
+            foreach (var note in Values)
+            {
+                jsonSerializer.Serialize(jsonWriter, note);
+            }
+            jsonWriter.WriteEndArray();
+        }
+        public void ReadJsonData(JToken dataToken, JsonSerializer jsonSerializer)
+        {
+            var data = dataToken as JArray;
+            foreach (var item in data)
+            {
+                var note = item.ToObject<Note>(jsonSerializer);
+                this.PutNote(note.BasePosition.Item1, note.BasePosition.Item2, note);
+            }
+        }
+        public static JsonSerializerSettings SheetJsonSerializerSettings { get; }
+        static Sheet()
+        {
+            SheetJsonSerializerSettings = new JsonSerializerSettings();
+            SheetJsonSerializerSettings.Converters.Add(new SheetJsonConverter());
+            SheetJsonSerializerSettings.Converters.Add(new NoteConverter());
+        }
     }
 
     public class HashSheet : Sheet
     {
+        public static HashSheet Default { get; } = new HashSheet(6, 3, 3);
         private readonly Dictionary<(int, int), Note> notes;
         public HashSheet(int column, int left, int right) : base(column, left, right)
         {
@@ -69,56 +93,61 @@ namespace WPFKB_Maker.TFS.KBBeat
                 return false;
             }
         }
-
         public override ICollection<Note> Values => this.notes.Values;
     }
-    [Obsolete]
-    public class ConcurrentHashSheet : HashSheet
+
+    public class SheetJsonConverter : JsonConverter
     {
-        private ReaderWriterLockSlim rwlock = new ReaderWriterLockSlim(LockRecursionPolicy.NoRecursion);
+        public override bool CanConvert(Type objectType) => typeof(Sheet).IsAssignableFrom(objectType);
 
-        public ConcurrentHashSheet(int column, int left, int right) : base(column, left, right)
+        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
+            JObject jObject = JObject.Load(reader);
+            var type = jObject["type"] ?? throw new ArgumentException("sheet missing \"type\" property");
+            var typeName = type.ToString();
+            
+            var col = jObject["col"] as JValue;
+            var l = jObject["l"] as JValue;
+            var r = jObject["r"] as JValue;
+
+            if (nameof(HashSheet).Equals(typeName))
+            {
+                var result = new HashSheet(col.Value<int>(), l.Value<int>(), r.Value<int>());
+                var data = jObject["data"];
+                
+                result.ReadJsonData(data, serializer);
+                return result;
+            }
+
+            throw new NotSupportedException("unknown sheet implementation: " + typeName.ToString());
         }
 
-        public override bool DeleteNote(int row, int column)
+        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
         {
-            try
-            {
-                this.rwlock.EnterWriteLock();
-                base.DeleteNote(row, column);
-                return true;
-            }
-            finally
-            {
-                this.rwlock.ExitWriteLock();
-            }
-        }
+            var sheet = value as HashSheet;
+            writer.WriteStartObject();
 
-        public override Note GetNote(int row, int column)
-        {
-            try
-            {
-                rwlock.EnterReadLock();
-                return base.GetNote(row, column);
-            }
-            finally
-            {
-                rwlock.ExitReadLock();
-            }
-        }
+            writer.WritePropertyName("col");
+            writer.WriteValue(sheet.Column);
+            writer.WritePropertyName("l");
+            writer.WriteValue(sheet.LeftSize);
+            writer.WritePropertyName("r");
+            writer.WriteValue(sheet.RightSize);
 
-        public override bool PutNote(int row, int column, Note note)
-        {
-            try
+            writer.WritePropertyName("type");
+            if (value is HashSheet)
             {
-                rwlock.EnterWriteLock();
-                return base.PutNote(row, column, note);
+                var hashSheet = value as HashSheet;
+                writer.WriteValue(value.GetType().Name);
+                writer.WritePropertyName("data");
+                hashSheet.WriteJsonData(writer, serializer);
             }
-            finally
+            else
             {
-                rwlock.ExitWriteLock();
+                throw new NotSupportedException($"not supported sheet implementation type: {value.GetType().Name}");
             }
+
+            writer.WriteEndObject();
         }
     }
 }

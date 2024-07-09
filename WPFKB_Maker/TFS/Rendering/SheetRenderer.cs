@@ -1,10 +1,8 @@
 ﻿using System;
-using System.CodeDom;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -26,6 +24,7 @@ namespace WPFKB_Maker.TFS
         private double dpiY;
 
         private BeatRenderStrategy strategy;
+        public BeatRenderStrategy.InteractAgent Agent { get => strategy.Agent; }
         public double BitmapVerticalRenderDistance { get => strategy.GetVerticalDistance(this); }
         public double BitmapColumnWidth
         {
@@ -59,16 +58,25 @@ namespace WPFKB_Maker.TFS
                 }
             }
         }
-
-        public Sheet Sheet { get; set; } = new HashSheet(6, 3, 3);
-
+        public Sheet Sheet
+        {
+            get
+            {
+                if (Project.Current == null)
+                {
+                    return HashSheet.Default;
+                }
+                return Project.Current.Sheet;
+            }
+        }
         public double BitmapWidth { get => this.bitmap.Width; }
         public double BitmapHeight { get => this.bitmap.Height; }
         public double ImageWidth { get => this.Image.ActualWidth; }
         public double ImageHeight { get => this.Image.ActualHeight; }
+        public Func<ICollection<Note>> SelectedNotesProvider { get; set; } = () => Array.Empty<Note>();
         public (int, int)? Selector { get; set; }
-
         public double TriggerLineY { get; set; } = 50;
+        public int TriggerLineRow { get => (int)Math.Floor((this.RenderFromY + this.TriggerLineY) / this.BitmapVerticalHiddenRowDistance); }
 
         public const double minZoom = 0.5;
         public const double maxZoom = 4.0;
@@ -146,6 +154,9 @@ namespace WPFKB_Maker.TFS
             NoteProvider = (center) => new Rect(
                     new Point(center.X - 40, center.Y - 10),
                     new Point(center.X + 40, center.Y + 10)),
+
+            SelectedNoteBrush = Brushes.White,
+            SelectedNotePen = new Pen(Brushes.Red, 4),
         };
         public SheetRenderer(Image image, int initialWidth, int initialHeight, double dpiX, double dpiY, int? fpsLimit = null)
         {
@@ -153,7 +164,7 @@ namespace WPFKB_Maker.TFS
             this.dpiX = dpiX;
             this.dpiY = dpiY;
             this.FPSLimit = fpsLimit;
-            
+
             this.bitmap = new RenderTargetBitmap(initialWidth, initialHeight, dpiX, dpiY, PixelFormats.Pbgra32);
             this.Image.Source = this.bitmap;
             this.RenderType = RenderStrategyType.R1_4;
@@ -177,9 +188,9 @@ namespace WPFKB_Maker.TFS
                             where
                                 ShouldRenderNote(note, renderFromRow, renderToRow)
                             select note;
-                lock(this.Sheet)
+                lock (this.Sheet)
                 {
-                    foreach( var note in query )
+                    foreach (var note in query)
                     {
                         this.NotesToRender.Add(note);
                     }
@@ -210,7 +221,7 @@ namespace WPFKB_Maker.TFS
             }
 
             var hold = note as HoldNote;
-            return 
+            return
                 (hold.BasePosition.Item1 >= start && hold.BasePosition.Item1 <= end) ||
                 (hold.End.Item1 >= start && hold.End.Item1 <= end);
         }
@@ -269,15 +280,18 @@ namespace WPFKB_Maker.TFS
         }
         private void DrawNotes(DrawingContext context)
         {
-            NotesToRender.ForEach((note) => RenderNote(context, note));
+            NotesToRender.ForEach((note) => RenderNote(context, note, this.SelectedNotesProvider().Contains(note)));
         }
-        private void RenderNote(DrawingContext context, Note note)
+        private void RenderNote(DrawingContext context, Note note, bool isSelected)
         {
+            var pen = isSelected ? Style.SelectedNotePen : Style.NotePen;
+            var brush = isSelected ? Style.SelectedNoteBrush : Style.NoteBrush;
+
             if (note is HitNote)
             {
                 context.DrawRectangle(
-                    Style.NoteBrush,
-                    Style.NotePen,
+                    brush,
+                    pen,
                     Style.NoteProvider(this.NotePositionToBitmapPoint(
                         (note as HitNote).BasePosition
                         ))
@@ -293,8 +307,8 @@ namespace WPFKB_Maker.TFS
                 var finalRect = new Rect(rect1.BottomLeft, rect2.TopRight);
 
                 context.DrawRectangle(
-                    Style.NoteBrush,
-                    Style.NotePen,
+                    brush,
+                    pen,
                     finalRect);
             }
         }
@@ -327,6 +341,8 @@ namespace WPFKB_Maker.TFS
         public Func<Point, Rect> NoteProvider { get; set; }
         public Brush NoteBrush { get; set; }
         public Pen NotePen { get; set; }
+        public Brush SelectedNoteBrush { get; set; }
+        public Pen SelectedNotePen { get; set; }
     }
 
     public abstract class BeatRenderStrategy
@@ -342,17 +358,12 @@ namespace WPFKB_Maker.TFS
                 pos.X *= sheetRenderer.BitmapWidth / sheetRenderer.ImageWidth;
                 pos.Y *= sheetRenderer.BitmapHeight / sheetRenderer.ImageHeight;
 
-                if (pos.X < 0 || pos.Y < 0 || pos.X > sheetRenderer.BitmapWidth || pos.Y > sheetRenderer.BitmapHeight)
-                {
-                    return null;
-                }
-
                 return GetPositionBitmap(sheetRenderer, pos);
             }
             public abstract (int, int)? GetPositionBitmap(SheetRenderer sheetRenderer, Point bitmapPosition);
             public (int, int)? GetPositionScreen(SheetRenderer sheetRenderer, Point screenPosition)
             {
-                var bitmapPosition = Mouse.GetPosition(sheetRenderer.Image);
+                var bitmapPosition = screenPosition;
                 bitmapPosition.X *= sheetRenderer.BitmapWidth / sheetRenderer.ImageWidth;
                 bitmapPosition.Y *= sheetRenderer.BitmapHeight / sheetRenderer.ImageHeight;
 
@@ -405,18 +416,18 @@ namespace WPFKB_Maker.TFS
         {
             double verticalDistance = GetVerticalDistance(sheetRenderer);
             double horizontalDistance = sheetRenderer.BitmapColumnWidth;
-            
+
             int row = (int)Math.Ceiling(sheetRenderer.RenderFromY / verticalDistance);
-            
+
             double y = sheetRenderer.BitmapHeight - (row * verticalDistance - sheetRenderer.RenderFromY);
             double startX = sheetRenderer.BitmapColumnWidth / 2;
-            
+
             double offset = row % 4 == 0 ? sheetRenderer.Style.Note_1_1Offset : sheetRenderer.Style.Note_1_4Offset;
 
             Point start = new Point(startX - offset, y);
             Point end = new Point(startX + offset, y);
 
-            while(start.Y >= 0)
+            while (start.Y >= 0)
             {
                 if (row % 4 == 0)
                 {

@@ -1,33 +1,38 @@
-﻿using Newtonsoft.Json;
+﻿using Microsoft.Win32;
+using Newtonsoft.Json;
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using WPFKB_Maker.TFS;
 using WPFKB_Maker.TFS.KBBeat;
+using WPFKB_Maker.TFS.Rendering;
 
 namespace WPFKB_Maker
 {
     public partial class MainWindow : Window
     {
         public const bool debug = true;
-
         private double dpiX;
         private double dpiY;
 
         public PutMode Mode { get; set; } = MainWindow.PutMode.VIEW;
 
-        private SheetRenderer sheetRenderer;
+        private SheetRenderer SheetRenderer { get => SheetEditor?.Renderer; }
+        private SheetEditor SheetEditor { get; set; }
         private DebugConsole debugConsole;
+        
+        private (int, int)? dragStart = null;
+        private bool isInDraggingSelection = false;
+        private bool isInDraggingMoving = false;
 
-        private bool isDragging = false;
         private Point mouseDownPosition;
         private const double DragThresholdSquared = 100;
 
         public double ScrollSensitivity { get; set; } = 0.1;
         public double ZoomSensitivity { get; set; } = 0.001;
-        public (int, int)? HoldStart = null;
 
         public MainWindow()
         {
@@ -50,18 +55,19 @@ namespace WPFKB_Maker
                     this.dpiY = 96.0 * source.CompositionTarget.TransformToDevice.M22;
                 }
 
-                this.sheetRenderer = new SheetRenderer(this.renderer, 
-                    (int)this.rendererBorder.ActualWidth, 
-                    (int)this.rendererBorder.ActualHeight, 
+                var renderer = new SheetRenderer(this.renderer,
+                    (int)this.rendererBorder.ActualWidth,
+                    (int)this.rendererBorder.ActualHeight,
                     dpiX, dpiY);
+                this.SheetEditor = new SheetEditor(renderer);
 
-                this.zoomSlider.Value = this.sheetRenderer.Zoom;
+                this.zoomSlider.Value = this.SheetRenderer.Zoom;
             };
 
             this.LayoutUpdated += (sender, e) =>
             {
                 Canvas.SetBottom(this.renderer, 0);
-                Canvas.SetLeft(this.renderer, 
+                Canvas.SetLeft(this.renderer,
                     (this.imageCanvas.ActualWidth - this.renderer.Width) / 2);
                 var x = this.renderer.ActualHeight / this.renderer.ActualWidth;
                 this.renderer.Width = this.imageCanvas.ActualWidth;
@@ -74,10 +80,10 @@ namespace WPFKB_Maker
             };
             this.InitializeToggleButtons();
         }
-        
+
         private void ScrollSheetRenderer(object sender, MouseWheelEventArgs e)
         {
-            if (this.sheetRenderer != null)
+            if (this.SheetRenderer != null)
             {
                 if (Keyboard.IsKeyDown(Key.LeftCtrl))
                 {
@@ -88,94 +94,17 @@ namespace WPFKB_Maker
                 }
                 else
                 {
-                    this.sheetRenderer.RenderFromY += e.Delta * ScrollSensitivity;
+                    this.SheetRenderer.RenderFromY += e.Delta * ScrollSensitivity;
                 }
             }
         }
         private void ZoomChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (this.sheetRenderer != null && this.zoomText != null)
+            if (this.SheetRenderer != null && this.zoomText != null)
             {
-                this.sheetRenderer.Zoom = e.NewValue;
+                this.SheetRenderer.Zoom = e.NewValue;
                 this.zoomText.Text = string.Format("缩放 {0:0.0}|4.0", e.NewValue);
             }
-        }
-        private void HandlePutHoldNote((int, int) selector)
-        {
-            if (HoldStart == null)
-            {
-                HoldStart = selector;
-                return;
-            }
-
-            if (selector.Item2 != HoldStart.Value.Item2)
-            {
-                MessageBox.Show("HOLD 音符的起始和终止位置应当位于同一列");
-                return;
-            }
-
-            if (selector.Item1 <= HoldStart.Value.Item1)
-            {
-                MessageBox.Show("HOLD 音符的终止位置应当在起始位置之后");
-                return;
-            }
-
-            Note note = new HoldNote((HoldStart.Value, selector));
-            lock (this.sheetRenderer.Sheet)
-            {
-                this.sheetRenderer.Sheet.PutNote(
-                    HoldStart.Value.Item1,
-                    HoldStart.Value.Item2,
-                    note);
-            }
-            HoldStart = null;
-        }
-        private void HandlePutHitNode((int, int) selector)
-        {
-            lock (this.sheetRenderer.Sheet)
-            {
-                this.sheetRenderer.Sheet.PutNote(
-                    selector.Item1,
-                    selector.Item2, new HitNote(selector));
-            }
-        }
-        private void HandleRemoveNote((int, int) selector)
-        {
-            var query = from note in this.sheetRenderer.NotesToRender
-                        where IsSelectedNote(note, selector)
-                        orderby SelectNotePriority(note)
-                        select note;
-            
-            if (!query.Any())
-            {
-                return;
-            }
-
-            var position = query.First().BasePosition;
-            lock (this.sheetRenderer.Sheet)
-            {
-                this.sheetRenderer.Sheet.DeleteNote(position.Item1, position.Item2);
-            }
-        }
-        private bool IsSelectedNote(Note note, (int, int) selector)
-        {
-            if (note is HitNote)
-            {
-                return note.BasePosition == selector;
-            }
-
-            var hold = note as HoldNote;
-            return hold.BasePosition.Item2 == selector.Item2 && 
-                hold.BasePosition.Item1 <= selector.Item1 &&
-                hold.End.Item1 >= selector.Item1;
-        }
-        private int SelectNotePriority(Note note)
-        {
-            if (note is HitNote)
-            {
-                return 1;
-            }
-            return 2;
         }
         private void InitializeToggleButtons()
         {
@@ -197,7 +126,7 @@ namespace WPFKB_Maker
             {
                 this.Mode = PutMode.HOLD;
                 hitModeButton.IsChecked = false;
-                this.HoldStart = null;
+                this.SheetEditor.HoldStart = null;
             };
 
             holdModeButton.Unchecked += (sender, e) =>
@@ -206,23 +135,22 @@ namespace WPFKB_Maker
                 {
                     this.Mode = PutMode.VIEW;
                 }
-                this.HoldStart = null;
+                this.SheetEditor.HoldStart = null;
             };
         }
         public enum PutMode
         {
             HIT, HOLD, VIEW
         }
-
         private void CanvasMouseUp(object sender, MouseButtonEventArgs e)
         {
-            if (isDragging)
+            if (isInDraggingSelection)
             {
-                isDragging = false;
+                isInDraggingSelection = false;
                 this.draggingBox.Visibility = Visibility.Hidden;
                 HandleDragging(new Rect(
                     this.mouseDownPosition,
-                    e.GetPosition(this.imageCanvas)                    
+                    e.GetPosition(this.imageCanvas)
                 ));
                 return;
             }
@@ -236,25 +164,42 @@ namespace WPFKB_Maker
                 HandleRightClick();
             }
         }
-
         private void HandleDragging(Rect rect)
         {
-            
+            var start = this.SheetEditor.ScreenToSheetPosition(rect.BottomLeft);
+            var end = this.SheetEditor.ScreenToSheetPosition(rect.TopRight);
+            if (start.HasValue && end.HasValue)
+            {
+                this.SheetEditor.SelectNotesByDragging(start.Value, end.Value);
+            }
         }
-
         private void CanvasMouseMove(object sender, MouseEventArgs e)
         {
             if (e.LeftButton == MouseButtonState.Pressed)
             {
+                if (this.isInDraggingMoving)
+                {
+                    var selector = this.SheetEditor.Selector;
+                    if (selector != this.dragStart)
+                    {
+                        this.SheetEditor.MoveSelectionShadow((
+                            selector.Value.Item1 - this.dragStart.Value.Item1,
+                            selector.Value.Item2 - this.dragStart.Value.Item2));
+
+                        this.dragStart = selector;
+                    }
+                    return;
+                }
+
                 var pos = e.GetPosition(this.imageCanvas);
                 var diff = pos - this.mouseDownPosition;
-                if (!isDragging && diff.LengthSquared > DragThresholdSquared)
+                if (!isInDraggingSelection && diff.LengthSquared > DragThresholdSquared)
                 {
-                    isDragging = true;
+                    isInDraggingSelection = true;
                     draggingBox.Visibility = Visibility.Visible;
                 }
 
-                if (isDragging)
+                if (isInDraggingSelection)
                 {
                     double x = Math.Min(pos.X, this.mouseDownPosition.X);
                     double y = Math.Min(pos.Y, this.mouseDownPosition.Y);
@@ -273,44 +218,166 @@ namespace WPFKB_Maker
         private void CanvasMouseDown(object sender, MouseButtonEventArgs e)
         {
             this.mouseDownPosition = e.GetPosition(this.imageCanvas);
-            isDragging = false;
+            this.draggingBox.Visibility = Visibility.Hidden;
+            this.dragStart = this.SheetEditor.Selector;
+            isInDraggingSelection = false;
+
+            var selector = this.SheetEditor.Selector;
+            var selectedNote = this.SheetEditor.Sheet.GetNote(selector.Value.Item1, selector.Value.Item2);
+
+            if (this.SheetEditor.IsInSelection)
+            {
+                if (this.SheetEditor.SelectedNotes.Where((note) =>
+                {
+                    if (note is HitNote)
+                    {
+                        return note.BasePosition == selector;
+                    }
+                    var hold = note as HoldNote;
+                    return hold.Start.Item2 == selector.Value.Item2 &&
+                        hold.Start.Item1 <= selector.Value.Item1 &&
+                        hold.End.Item2 >= selector.Value.Item2;
+                }).Any())
+                {
+                    this.isInDraggingMoving = true;
+                }
+                else
+                {
+                    this.isInDraggingMoving = false;
+                    this.SheetEditor.FlushSelectionMoving();
+                }
+            }
         }
         private void HandleLeftClick()
         {
-            if (this.sheetRenderer == null || 
-                this.sheetRenderer.Sheet == null ||
+            if (!this.SheetEditor.HasSheet() ||
                 this.Mode == PutMode.VIEW)
             {
                 return;
             }
-            var selector = this.sheetRenderer.Selector;
+            var selector = this.SheetEditor.Selector;
             if (selector == null)
             {
                 return;
             }
+
+            if (this.isInDraggingMoving)
+            {
+                return;
+            }
+
+            var existingNote = this.SheetEditor.Sheet.Values
+                .Where((note) =>
+                {
+                    if (note is HitNote)
+                    {
+                        return note.BasePosition == selector;
+                    }
+                    var hold = note as HoldNote;
+                    return hold.Start.Item2 == selector.Value.Item2 &&
+                        hold.Start.Item1 <= selector.Value.Item1 &&
+                        hold.End.Item2 >= selector.Value.Item2;
+                }).FirstOrDefault();
+
+            if (existingNote != null)
+            {
+                this.SheetEditor.SelectSingleNote(existingNote);
+                return;
+            }
+
             if (this.Mode == PutMode.HIT)
             {
-                HandlePutHitNode(selector.Value);
+                this.SheetEditor.PutHitNode(selector.Value);
             }
             else
             {
-                HandlePutHoldNote(selector.Value);
+                this.SheetEditor.PutHoldNote(selector.Value);
             }
         }
         private void HandleRightClick()
         {
-            if (this.sheetRenderer == null ||
-                this.sheetRenderer.Sheet == null ||
-                this.Mode == PutMode.VIEW)
+            if (!this.SheetEditor.HasSheet() || this.Mode == PutMode.VIEW)
             {
                 return;
             }
-            var selector = this.sheetRenderer.Selector;
+            var selector = this.SheetEditor.Selector;
             if (selector == null)
             {
                 return;
             }
-            this.HandleRemoveNote(selector.Value);
+            this.SheetEditor.RemoveNote(selector.Value);
+        }
+        private void HandleKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Space)
+            {
+                if (this.isInDraggingMoving)
+                {
+                    this.isInDraggingMoving = false;
+                    this.SheetEditor.FlushSelectionMoving();
+                }
+            }
+        }
+        private async void NewProjectButtonDown(object sender, RoutedEventArgs e)
+        {
+            if (!await TryAskForSave())
+            {
+                return;
+            }
+
+            new NewProjectWindow().Show();
+        }
+        private async void SaveButtonClick(object sender, RoutedEventArgs e)
+        {
+            if (Project.Current == null)
+            {
+                MessageBox.Show("当前没有创建任何项目");
+                return;
+            }
+
+            var button = sender as Button;
+            button.IsEnabled = false;
+            await Project.SaveNew(Project.Current).ConfigureAwait(true);
+            button.IsEnabled = true;
+        }
+        private async void OpenAnotherProjectButtonDown(object sender, RoutedEventArgs e)
+        {
+            if (!await TryAskForSave())
+            {
+                return;
+            }
+
+            var dialog = new OpenFileDialog()
+            {
+                Title = "Open project",
+                Filter = "KBBeat wpf project (*.kbpwpf)|*.kbpwpf"
+            };
+            var result = dialog.ShowDialog(this);
+
+            if (result == true)
+            {
+                var project = await Project.LoadProjectFromFile(dialog.FileName);
+                Project.Current = project;
+            }
+        }
+        private async Task<bool> TryAskForSave()
+        {
+            if (Project.Current == null)
+            {
+                return true;
+            }
+            var result = MessageBox.Show("是否保存现有的项目？未保存的更改将被丢失", "切换项目", MessageBoxButton.YesNoCancel, MessageBoxImage.Warning);
+            switch (result)
+            {
+                case MessageBoxResult.Yes:
+                    await Project.SaveNew(Project.Current);
+                    return true;
+                case MessageBoxResult.No:
+                    return true;
+                case MessageBoxResult.Cancel:
+                default:
+                    return false;
+            }
         }
     }
 }

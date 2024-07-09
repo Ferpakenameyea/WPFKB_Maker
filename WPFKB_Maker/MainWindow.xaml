@@ -8,6 +8,7 @@
         Title="MainWindow" Height="800" Width="788"
         MinHeight="450"
         MinWidth="800"
+        KeyDown="HandleKeyDown"
     xmlns:theme="clr-namespace:Microsoft.Windows.Themes;assembly=PresentationFramework.Aero2">
     <Window.Resources>
         <Style x:Key="BottomStatusItem" TargetType="StatusBarItem" BasedOn="{StaticResource {x:Type StatusBarItem}}">
@@ -210,7 +211,7 @@
         <DockPanel Grid.Row="0">
             <Menu DockPanel.Dock="Top" Height="20">
                 <MenuItem Header="文件">
-                    <MenuItem Header="新建项目"></MenuItem>
+                    <MenuItem Header="新建项目" Click="NewProjectButtonDown"></MenuItem>
                     <MenuItem Header="保存项目"></MenuItem>
                     <MenuItem Header="另存项目"></MenuItem>
                     <MenuItem Header="项目设置"></MenuItem>
@@ -225,13 +226,13 @@
             <DockPanel DockPanel.Dock="Top">
                 <ToolBarTray DockPanel.Dock="Left" Background="#FFF1F1F1">
                     <ToolBar Style="{DynamicResource ToolBarStyle}">
-                        <Button>
+                        <Button Click="NewProjectButtonDown">
                             <TextBlock Text="2" LineStackingStrategy="BlockLineHeight" FontFamily="Wingdings"/>
                         </Button>
-                        <Button>
+                        <Button Click="OpenAnotherProjectButtonDown">
                             <TextBlock Text="0" LineStackingStrategy="BlockLineHeight" FontFamily="Wingdings"/>
                         </Button>
-                        <Button>
+                        <Button Click="SaveButtonClick">
                             <TextBlock Text="&lt;" LineStackingStrategy="BlockLineHeight" FontFamily="Wingdings"/>
                         </Button>
                         <Button>

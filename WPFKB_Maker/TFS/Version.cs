@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace WPFKB_Maker.TFS
+﻿namespace WPFKB_Maker.TFS
 {
     public static class Version
     {

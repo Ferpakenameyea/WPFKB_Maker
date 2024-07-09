@@ -1,12 +1,6 @@
 ﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace WPFKB_Maker.TFS.KBBeat
 {
@@ -14,19 +8,22 @@ namespace WPFKB_Maker.TFS.KBBeat
     {
         [JsonProperty("t")] public NoteType Type { get; protected set; }
         [JsonProperty("d")] public (int, int)[] Datas { get; protected set; }
-        [JsonIgnore] public (int, int) BasePosition { get => this.Datas[0]; }
-    
+        [JsonIgnore] public (int, int) BasePosition { get => this.Datas[0]; set => this.Datas[0] = value; }
+
         protected Note(int dataArraySize, NoteType noteType)
         {
             this.Datas = new (int, int)[dataArraySize];
             this.Type = noteType;
         }
 
-        public static JsonSerializerSettings JsonSerializerSettings { get; }
-        static Note()
+        public override string ToString()
         {
-            JsonSerializerSettings = new JsonSerializerSettings();
-            JsonSerializerSettings.Converters.Add(new NoteConverter());
+            return $"KBBeat-abstract-note: {this.BasePosition}";
+        }
+
+        public virtual void Move((int, int) delta)
+        {
+            this.BasePosition = this.BasePosition.Add(delta);
         }
     }
 
@@ -38,6 +35,10 @@ namespace WPFKB_Maker.TFS.KBBeat
             base.Type = NoteType.Hit;
         }
         [JsonIgnore] public (int, int) Position { get => this.Datas[0]; }
+        public override string ToString()
+        {
+            return $"KBBeat-Hit: {this.BasePosition}";
+        }
     }
 
     public class HoldNote : Note
@@ -46,10 +47,11 @@ namespace WPFKB_Maker.TFS.KBBeat
         {
             this.Value = value;
         }
-        [JsonIgnore] public (int, int) Start { get => this.Datas[0]; }
-        [JsonIgnore] public (int, int) End { get => this.Datas[1]; }
-        [JsonIgnore] public ((int, int), (int, int)) Value
-        { 
+        [JsonIgnore] public (int, int) Start { get => this.Datas[0]; set => this.Datas[0] = value; }
+        [JsonIgnore] public (int, int) End { get => this.Datas[1]; set => this.Datas[1] = value; }
+        [JsonIgnore]
+        public ((int, int), (int, int)) Value
+        {
             get => (this.Start, this.End);
             set
             {
@@ -70,6 +72,16 @@ namespace WPFKB_Maker.TFS.KBBeat
                 this.Datas[0] = start;
                 this.Datas[1] = end;
             }
+        }
+        public override string ToString()
+        {
+            return $"KBBeat-Hold: From {this.Start} to {this.End}";
+        }
+
+        public override void Move((int, int) delta)
+        {
+            this.Start = this.Start.Add(delta);
+            this.End = this.End.Add(delta);
         }
     }
 
@@ -93,18 +105,18 @@ namespace WPFKB_Maker.TFS.KBBeat
             Note value = null;
             JArray array = jsonObject["val"] as JArray;
 
-            switch(jsonObject["type"].ToString())
+            switch (jsonObject["type"].ToString())
             {
                 case nameof(NoteType.Hit):
                     value = new HitNote((
-                        array[0].Value<int>(), 
+                        array[0].Value<int>(),
                         array[1].Value<int>()));
                     break;
 
                 case nameof(NoteType.Hold):
                     value = new HoldNote(
                         (
-                            (array[0].Value<int>(), array[1].Value<int>()), 
+                            (array[0].Value<int>(), array[1].Value<int>()),
                             (array[2].Value<int>(), array[3].Value<int>())
                         ));
                     break;
@@ -126,8 +138,8 @@ namespace WPFKB_Maker.TFS.KBBeat
 
             writer.WritePropertyName("val");
             writer.WriteStartArray();
-            
-            foreach(var pos in note.Datas)
+
+            foreach (var pos in note.Datas)
             {
                 writer.WriteValue(pos.Item1);
                 writer.WriteValue(pos.Item2);
