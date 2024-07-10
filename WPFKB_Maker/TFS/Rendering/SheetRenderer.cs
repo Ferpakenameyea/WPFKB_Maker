@@ -42,6 +42,12 @@ namespace WPFKB_Maker.TFS
         public double BitmapVerticalHiddenRowDistance { get => this.BitmapHeight / (96 * zoom); }
         public int RenderFromRow { get => (int)Math.Ceiling(this.RenderFromY / BitmapVerticalHiddenRowDistance); }
         public int RenderToRow { get => (int)Math.Floor((this.RenderFromY + this.BitmapHeight) / BitmapVerticalHiddenRowDistance); }
+        public double BitmapHeightPerBeat { get => this.BitmapHeight / (this.zoom * 4); }
+        public double TriggerAbsoluteY 
+        { 
+            get => TriggerLineY + this.RenderFromY; 
+            set => this.RenderFromY = value - TriggerLineY;
+        }
         private RenderStrategyType renderType;
         public RenderStrategyType RenderType
         {
@@ -59,15 +65,16 @@ namespace WPFKB_Maker.TFS
                 }
             }
         }
+        public Project Project { get; set; }
         public Sheet Sheet
         {
             get
             {
-                if (Project.Current == null)
+                if (this.Project == null)
                 {
                     return HashSheet.Default;
                 }
-                return Project.Current.Sheet;
+                return this.Project.Sheet;
             }
         }
         public double BitmapWidth { get => this.bitmap.Width; }
@@ -78,7 +85,6 @@ namespace WPFKB_Maker.TFS
         public (int, int)? Selector { get; set; }
         public double TriggerLineY { get; set; } = 50;
         public int TriggerLineRow { get => (int)Math.Floor((this.RenderFromY + this.TriggerLineY) / this.BitmapVerticalHiddenRowDistance); }
-
         public const double minZoom = 0.5;
         public const double maxZoom = 4.0;
 
@@ -281,7 +287,17 @@ namespace WPFKB_Maker.TFS
         }
         private void DrawNotes(DrawingContext context)
         {
-            NotesToRender.ForEach((note) => RenderNote(context, note, this.SelectedNotesProvider().Contains(note)));
+            try
+            {
+                foreach (var note in NotesToRender) 
+                {
+                    RenderNote(context, note, this.SelectedNotesProvider().Contains(note));
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.console.Write($"rendering error: {e}");
+            }
         }
         private void RenderNote(DrawingContext context, Note note, bool isSelected)
         {

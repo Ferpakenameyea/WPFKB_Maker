@@ -1,6 +1,7 @@
 ﻿using Microsoft.Win32;
 using Newtonsoft.Json;
 using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
@@ -9,6 +10,7 @@ using System.Windows.Input;
 using WPFKB_Maker.TFS;
 using WPFKB_Maker.TFS.KBBeat;
 using WPFKB_Maker.TFS.Rendering;
+using WPFKB_Maker.TFS.Sound;
 
 namespace WPFKB_Maker
 {
@@ -20,8 +22,9 @@ namespace WPFKB_Maker
 
         public PutMode Mode { get; set; } = MainWindow.PutMode.VIEW;
 
-        private SheetRenderer SheetRenderer { get => SheetEditor?.Renderer; }
-        private SheetEditor SheetEditor { get; set; }
+        public SheetRenderer SheetRenderer { get => SheetEditor?.Renderer; }
+        public SheetPlayer SheetPlayer { get => SheetEditor?.Player; }
+        public SheetEditor SheetEditor { get; private set; }
         private DebugConsole debugConsole;
         
         private (int, int)? dragStart = null;
@@ -45,6 +48,7 @@ namespace WPFKB_Maker
 
             var settings = new JsonSerializerSettings();
             settings.TypeNameHandling = TypeNameHandling.Auto;
+            StrikeSoundEffectPlayer.Initialize();
 
             this.Loaded += (sender, e) =>
             {
@@ -59,7 +63,8 @@ namespace WPFKB_Maker
                     (int)this.rendererBorder.ActualWidth,
                     (int)this.rendererBorder.ActualHeight,
                     dpiX, dpiY);
-                this.SheetEditor = new SheetEditor(renderer);
+                var player = new SheetPlayer(renderer);
+                this.SheetEditor = new SheetEditor(renderer, player);
 
                 this.zoomSlider.Value = this.SheetRenderer.Zoom;
             };
@@ -276,7 +281,7 @@ namespace WPFKB_Maker
                     var hold = note as HoldNote;
                     return hold.Start.Item2 == selector.Value.Item2 &&
                         hold.Start.Item1 <= selector.Value.Item1 &&
-                        hold.End.Item2 >= selector.Value.Item2;
+                        hold.End.Item1 >= selector.Value.Item1;
                 }).FirstOrDefault();
 
             if (existingNote != null)
@@ -325,7 +330,7 @@ namespace WPFKB_Maker
                 return;
             }
 
-            new NewProjectWindow().Show();
+            new NewProjectWindow(this).Show();
         }
         private async void SaveButtonClick(object sender, RoutedEventArgs e)
         {
@@ -358,6 +363,8 @@ namespace WPFKB_Maker
             {
                 var project = await Project.LoadProjectFromFile(dialog.FileName);
                 Project.Current = project;
+                this.SheetPlayer.Project = project;
+                this.SheetEditor.Project = project;
             }
         }
         private async Task<bool> TryAskForSave()
@@ -378,6 +385,33 @@ namespace WPFKB_Maker
                 default:
                     return false;
             }
+        }
+        private void PlayButtonClicked(object sender, RoutedEventArgs e)
+        {
+            if (SheetPlayer?.Project == null)
+            {
+                MessageBox.Show("当前没有创建项目！");
+                return;
+            }
+
+            if (SheetPlayer.Playing)
+            {
+                SheetPlayer.Pause();
+            }
+            else
+            {
+                SheetPlayer.Play();
+            }
+        }
+
+        private void Button_Click(object sender, RoutedEventArgs e)
+        {
+            Stopwatch watch = new Stopwatch();
+            watch.Start();
+            StrikeSoundEffectPlayer.Play();
+            watch.Stop();
+
+            Debug.console.Write($"Sound playing used {watch.ElapsedMilliseconds} ms");
         }
     }
 }

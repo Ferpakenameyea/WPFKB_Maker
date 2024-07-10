@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using NAudio.Wave;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -39,8 +40,12 @@ namespace WPFKB_Maker.TFS.KBBeat
 
         [JsonProperty("bpm")]
         public float Bpm { get; set; }
+        [JsonProperty("ext")]
+        public string Ext { get; set; }
         [JsonIgnore]
         public byte[] MusicFile { get; set; }
+        [JsonIgnore]
+        public WaveFormat WaveFormat { get; set; }
 
         public Meta(
                 string assetBundleName,
@@ -53,8 +58,10 @@ namespace WPFKB_Maker.TFS.KBBeat
                 int rightTrackSize,
                 UnityVector3 noteAppearPosition,
                 float bpm,
-                byte[] musicFile
-            )
+                byte[] musicFile,
+                WaveFormat waveFormat
+,
+                string ext)
         {
             this.AssetBundleName = assetBundleName;
             this.Name = name;
@@ -67,6 +74,8 @@ namespace WPFKB_Maker.TFS.KBBeat
             this.NoteAppearPosition = noteAppearPosition;
             this.Bpm = bpm;
             this.MusicFile = musicFile;
+            this.WaveFormat = waveFormat;
+            this.Ext = ext;
         }
     }
     public class MetaBuilder
@@ -82,6 +91,8 @@ namespace WPFKB_Maker.TFS.KBBeat
         public UnityVector3 NoteAppearPosition { get; private set; }
         public byte[] MusicFile { get; private set; }
         public float Bpm { get; private set; }
+        public WaveFormat WaveFormat { get; private set; }
+        public string Ext { get; private set; }
 
         public MetaBuilder SetAssetBundleName(string assetBundleName)
         {
@@ -149,6 +160,18 @@ namespace WPFKB_Maker.TFS.KBBeat
             return this;
         }
 
+        public MetaBuilder SetWaveFormat(WaveFormat waveFormat)
+        {
+            WaveFormat = waveFormat;
+            return this;
+        }
+
+        public MetaBuilder SetExtensionName(string ext)
+        {
+            this.Ext = ext;
+            return this;
+        }
+
         public Meta Build()
         {
             if (string.IsNullOrEmpty(AssetBundleName))
@@ -173,6 +196,10 @@ namespace WPFKB_Maker.TFS.KBBeat
                 throw new InvalidOperationException("MusicFilePath不能为空。");
             if (Bpm == 0)
                 throw new InvalidOperationException("未设置Bpm。");
+            if (WaveFormat == null)
+                throw new InvalidOperationException("未提供Waveformat信息");
+            if (string.IsNullOrEmpty(Ext))
+                throw new InvalidOperationException("未提供音频格式信息");
 
             return new Meta(
                 AssetBundleName,
@@ -185,7 +212,9 @@ namespace WPFKB_Maker.TFS.KBBeat
                 RightTrackSize,
                 NoteAppearPosition,
                 Bpm,
-                MusicFile
+                MusicFile,
+                WaveFormat,
+                Ext
             );
         }
     }

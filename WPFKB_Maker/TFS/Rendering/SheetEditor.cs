@@ -9,16 +9,19 @@ namespace WPFKB_Maker.TFS.Rendering
     public class SheetEditor
     {
         public SheetRenderer Renderer { get; }
+        public SheetPlayer Player { get; }
         public Sheet Sheet { get => Renderer.Sheet; }
+        public Project Project { get => Renderer.Project; set => Renderer.Project = value; }
         public (int, int)? Selector { get => Renderer.Selector; }
         public (int, int)? HoldStart { get; set; } = null;
         public ICollection<Note> SelectedNotes { get; } = new HashSet<Note>();
         private List<(int, int)> removingPositions = new List<(int, int)>();
         public bool IsInSelection { get => SelectedNotes.Count > 0; }
-        public SheetEditor(SheetRenderer renderer)
+        public SheetEditor(SheetRenderer renderer, SheetPlayer player)
         {
             this.Renderer = renderer;
             this.Renderer.SelectedNotesProvider = () => this.SelectedNotes;
+            this.Player = player;
         }
         ~SheetEditor()
         {

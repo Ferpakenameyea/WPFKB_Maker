@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using NAudio.Wave;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -8,12 +9,14 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
+using WPFKB_Maker.TFS.Sound;
 
 namespace WPFKB_Maker.TFS.KBBeat
 {
     public class Project
     {
         public static Project Current { get; set; } = null;
+        public static event EventHandler<Project> ProjectChanged;
         public Meta Meta { get; set; }
         public Sheet Sheet { get; set; }
         [JsonIgnore] public string SavingPath { get; set; } = null;
@@ -24,13 +27,11 @@ namespace WPFKB_Maker.TFS.KBBeat
             Sheet = sheet;
             this.SavingPath = savingPath;
         }
-
         private Project(Meta meta, Sheet sheet)
         {
             Meta = meta;
             Sheet = sheet;
         }
-
         public static async Task SaveNew(Project project, string savepath = null)
         {
             if (savepath == null)
@@ -50,7 +51,6 @@ namespace WPFKB_Maker.TFS.KBBeat
                 }
             }
         }
-
         private static async Task SaveToZipNew(ZipArchive zipArchive, Project project)
         {
             byte[] metaByte = Array.Empty<byte>(), sheetByte = Array.Empty<byte>();
@@ -104,7 +104,6 @@ namespace WPFKB_Maker.TFS.KBBeat
                 }
             }
         }
-
         private static async Task<Project> LoadProjectFromZip(ZipArchive zipArchive)
         {
             var entries = zipArchive.Entries;
@@ -112,18 +111,19 @@ namespace WPFKB_Maker.TFS.KBBeat
             Sheet sheetBuffer = null;
             byte[] musicBuffer = null;
             byte[] buffer = null;
-            foreach (var entry in entries)
+
+            await Task.Run(() =>
             {
-                using (var stream = entry.Open())
+                foreach (var entry in entries)
                 {
-                    using (var memoryStream = new MemoryStream())
+                    using (var stream = entry.Open())
                     {
-                        await stream.CopyToAsync(memoryStream);
-                        buffer = memoryStream.ToArray();
+                        using (var memoryStream = new MemoryStream())
+                        {
+                            stream.CopyTo(memoryStream);
+                            buffer = memoryStream.ToArray();
+                        }
                     }
-                }
-                await Task.Run(() =>
-                {
                     switch (entry.Name)
                     {
                         case "meta":
@@ -138,14 +138,20 @@ namespace WPFKB_Maker.TFS.KBBeat
                             musicBuffer = buffer;
                             break;
                     }
-                });
-            }
-            if (metaBuffer == null || sheetBuffer == null || metaBuffer == null)
-            {
-                throw new Exception("项目文件不全，项目可能被人为损坏");
-            }
-            metaBuffer.MusicFile = musicBuffer;
-
+                }
+                if (metaBuffer == null || sheetBuffer == null || metaBuffer == null)
+                {
+                    throw new Exception("项目文件不全，项目可能被人为损坏");
+                }
+                metaBuffer.MusicFile = musicBuffer;
+                using (var memoryStream = new MemoryStream(musicBuffer))
+                {
+                    using (var waveStream = KBMakerWaveStream.GetWaveStream(metaBuffer.Ext, memoryStream))
+                    {
+                        metaBuffer.WaveFormat = waveStream.WaveFormat;
+                    }
+                }
+            });
             return new Project(metaBuffer, sheetBuffer);
         }
     }

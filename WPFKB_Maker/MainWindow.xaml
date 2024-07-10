@@ -235,7 +235,7 @@
                         <Button Click="SaveButtonClick">
                             <TextBlock Text="&lt;" LineStackingStrategy="BlockLineHeight" FontFamily="Wingdings"/>
                         </Button>
-                        <Button>
+                        <Button Click="Button_Click">
                             <TextBlock Text="@" LineStackingStrategy="BlockLineHeight" FontFamily="Webdings"/>
                         </Button>
                     </ToolBar>
@@ -246,7 +246,7 @@
                         <Button>
                             <TextBlock Text="7" LineStackingStrategy="BlockLineHeight" FontFamily="Webdings"/>
                         </Button>
-                        <Button>
+                        <Button Click="PlayButtonClicked">
                             <TextBlock Text="4" LineStackingStrategy="BlockLineHeight" FontFamily="Webdings"/>
                         </Button>
                         <Button>

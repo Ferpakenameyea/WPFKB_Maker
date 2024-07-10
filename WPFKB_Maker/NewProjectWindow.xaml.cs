@@ -1,4 +1,5 @@
 ﻿using Microsoft.Win32;
+using NAudio.Wave;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -34,14 +35,16 @@ namespace WPFKB_Maker
         private readonly ObservableCollection<string> composers = new ObservableCollection<string>();
 
         private readonly Regex regex = new Regex("^[a-zA-Z_0-9]+[.][a-zA-Z_0-9]+$");
+        private readonly MainWindow mainWindow;
 
-        public NewProjectWindow()
+        public NewProjectWindow(MainWindow mainWindow)
         {
             InitializeComponent();
 
             levelAuthorsListView.ItemsSource = this.levelAuthors;
             composersListView.ItemsSource = this.composers;
             this.remindingBox.Text = $"KBMaker WPF {TFS.Version.version}";
+            this.mainWindow = mainWindow;
         }
 
         private void BrowseLocalFile(object sender, RoutedEventArgs e)
@@ -194,11 +197,19 @@ namespace WPFKB_Maker
                 }
 
                 byte[] data = Array.Empty<byte>();
-
+                WaveFormat waveFormat = null;
+                string extensionName = new FileInfo(this.SelectedFilePath).Extension;
                 button.Content = "正在读取音乐文件……";
                 await Task.Run(() =>
                 {
                     data = File.ReadAllBytes(this.SelectedFilePath);
+                    using (MemoryStream ms = new MemoryStream(data))
+                    {
+                        using (var reader = KBMakerWaveStream.GetWaveStream(this.SelectedFilePath))
+                        {
+                            waveFormat = reader.WaveFormat;
+                        }
+                    }
                 }).ConfigureAwait(true);
                 
                 button.Content = "正在构建项目……";
@@ -221,12 +232,17 @@ namespace WPFKB_Maker
                         )
                     )
                     .SetMusicFile(data)
+                    .SetWaveFormat(waveFormat)
+                    .SetExtensionName(extensionName)
                     .Build();
 
                 Project.Current = new Project(meta, new HashSheet(
                     meta.LeftTrackSize + meta.RightTrackSize,
                     meta.LeftTrackSize,
                     meta.RightTrackSize), this.savingPathBlock.Text);
+                
+                mainWindow.SheetPlayer.Project = Project.Current;
+                mainWindow.SheetEditor.Project = Project.Current;
 
                 this.Close();
             }
