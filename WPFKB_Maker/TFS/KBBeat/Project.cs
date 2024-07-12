@@ -2,6 +2,7 @@
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -15,8 +16,13 @@ namespace WPFKB_Maker.TFS.KBBeat
 {
     public class Project
     {
-        public static Project Current { get; set; } = null;
-        public static event EventHandler<Project> ProjectChanged;
+        public static Project Current
+        {
+            get => ObservableCurrentProject.Value;
+            set => ObservableCurrentProject.Value = value;
+        }
+        public static ObservableObject<Project> ObservableCurrentProject { get; }
+            = new ObservableObject<Project>(null);
         public Meta Meta { get; set; }
         public Sheet Sheet { get; set; }
         [JsonIgnore] public string SavingPath { get; set; } = null;
@@ -153,6 +159,26 @@ namespace WPFKB_Maker.TFS.KBBeat
                 }
             });
             return new Project(metaBuffer, sheetBuffer);
+        }
+    }
+
+    public class ObservableObject<T> : INotifyPropertyChanged
+    {
+        private T value;
+        public event PropertyChangedEventHandler PropertyChanged;
+        
+        public ObservableObject(T initialValue) {
+            this.value = initialValue;
+        }
+    
+        public T Value
+        {
+            get => value;
+            set
+            {
+                this.value = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(this.value)));
+            }
         }
     }
 }

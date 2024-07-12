@@ -1,7 +1,8 @@
 ﻿using Microsoft.Extensions.ObjectPool;
 using NAudio.Wave;
+using System.Collections.Generic;
 using System.IO;
-using System.Runtime.CompilerServices;
+using System.Windows.Documents;
 
 namespace WPFKB_Maker.TFS.Sound
 {
@@ -9,6 +10,7 @@ namespace WPFKB_Maker.TFS.Sound
     {
         private static ObjectPool<StrikePlayer> players;
         private static byte[] data;
+        private const int preload = 40;
 
         public static void Play()
         {
@@ -19,23 +21,31 @@ namespace WPFKB_Maker.TFS.Sound
         {
             data = File.ReadAllBytes("./strike.wav");
             players = new DefaultObjectPool<StrikePlayer>(
-                new DefaultPooledObjectPolicy<StrikePlayer>(),
-                40);
+                new DefaultPooledObjectPolicy<StrikePlayer>());
+            List<StrikePlayer> preloadPlayers = new List<StrikePlayer>();
+            for (int i = 0; i < preload; i++)
+            {
+                preloadPlayers.Add(players.Get());
+            }
+            foreach (var preloaded in preloadPlayers)
+            {
+                players.Return(preloaded);
+            }
         }
 
         private class StrikePlayer
         {
-            private WaveOutEvent waveout;
+            private WasapiOut device;
             private WaveFileReader reader;
             private MemoryStream stream;
 
             public StrikePlayer()
             {
-                this.waveout = new WaveOutEvent();
+                this.device = new WasapiOut();
                 this.stream = new MemoryStream(data);
                 this.reader = new WaveFileReader(stream);
-                this.waveout.Init(reader);
-                this.waveout.PlaybackStopped += (sender, e) =>
+                this.device.Init(reader);
+                this.device.PlaybackStopped += (sender, e) =>
                 {
                     this.stream.Position = 0;
                     players.Return(this);
@@ -44,12 +54,12 @@ namespace WPFKB_Maker.TFS.Sound
 
             ~StrikePlayer()
             {
-                this.waveout.Dispose();
+                this.device.Dispose();
                 this.stream.Dispose();
                 this.reader.Dispose();
             }
 
-            public void Play() => waveout.Play();
+            public void Play() => device.Play();
         }
     }
 }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -87,6 +88,8 @@ namespace WPFKB_Maker.TFS
         public int TriggerLineRow { get => (int)Math.Floor((this.RenderFromY + this.TriggerLineY) / this.BitmapVerticalHiddenRowDistance); }
         public const double minZoom = 0.5;
         public const double maxZoom = 4.0;
+
+        private SemaphoreSlim renderMutex = new SemaphoreSlim(1, 1);
 
         private double zoom = 1.0f;
         public double Zoom
@@ -181,11 +184,14 @@ namespace WPFKB_Maker.TFS
         }
         private async void OnRender(object sender, EventArgs e)
         {
+            await renderMutex.WaitAsync();
             this.NotesToRender.Clear();
             if (stopwatch.ElapsedMilliseconds < this.RenderIntervalMilliseconds)
             {
                 return;
             }
+            var watch = new Stopwatch();
+            watch.Start();
 
             var renderFromRow = this.RenderFromRow;
             var renderToRow = this.RenderToRow;
@@ -218,7 +224,10 @@ namespace WPFKB_Maker.TFS
 
             this.bitmap.Clear();
             this.bitmap.Render(this.drawingVisual);
+            
+            watch.Stop();
             stopwatch.Restart();
+            renderMutex.Release();
         }
         private bool ShouldRenderNote(Note note, int start, int end)
         {

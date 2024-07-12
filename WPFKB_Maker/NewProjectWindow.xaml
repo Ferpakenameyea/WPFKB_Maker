@@ -109,7 +109,7 @@
                                 <DockPanel Margin="0,0,0,10">
                                     <Label Content="歌曲BPM" DockPanel.Dock="Left"/>
                                     <TextBox x:Name="bpmBox" Margin="10,0,0,0" Width="70" DockPanel.Dock="Left" VerticalAlignment="Center" LostFocus="CheckFloat" AcceptsReturn="False"/>
-                                    <Button x:Name="measureBPMButton" Content=" 自动测量 " HorizontalAlignment="Left" Margin="20,0,0,0" DockPanel.Dock="Left" Click="BPMButtonDown"/>
+                                    <Button x:Name="measureBPMButton" Content=" 自动测量（实验性） " HorizontalAlignment="Left" Margin="20,0,0,0" DockPanel.Dock="Left" Click="BPMButtonDown"/>
                                 </DockPanel>
                                 <DockPanel Margin="0,0,0,10">
                                     <Label Content="音符出现位置" VerticalAlignment="Center"/>

@@ -17,14 +17,14 @@ namespace WPFKB_Maker.TFS.Rendering
     {
         private SheetRenderer Renderer { get; }
         public double CurrentTimeSeconds => this.timer.Seconds;
-        public float Volume { get => waveout.Volume; set => waveout.Volume = value; }
+        public float Volume { get => device.Volume; set => device.Volume = value; }
         public bool Playing { get; private set; } = false;
-        private WaveOutEvent waveout;
+        private WasapiOut device;
         private WaveStream waveStream;
         public event EventHandler<StoppedEventArgs> OnPlayBackStopped
         {
-            add => waveout.PlaybackStopped += value;
-            remove => waveout.PlaybackStopped -= value;
+            add => device.PlaybackStopped += value;
+            remove => device.PlaybackStopped -= value;
         }
         private int[] lastTrigggered = new int[10];
         private StopWatchTimer timer = new StopWatchTimer();
@@ -36,8 +36,8 @@ namespace WPFKB_Maker.TFS.Rendering
             {
                 project = value;
                 this.waveStream = KBMakerWaveStream.GetWaveStream(project.Meta.Ext, new MemoryStream(project.Meta.MusicFile));
-                this.waveout = new WaveOutEvent();
-                waveout.Init(this.waveStream);
+                this.device = new WasapiOut();
+                device.Init(this.waveStream);
 
                 Debug.console.Write("播放器已加载项目");
             }
@@ -53,7 +53,6 @@ namespace WPFKB_Maker.TFS.Rendering
             {
                 return;
             }
-
             var beat = this.CurrentTimeSeconds * this.Project.Meta.Bpm / 60;
 
             this.Renderer.TriggerAbsoluteY = beat * this.Renderer.BitmapHeightPerBeat;
@@ -74,11 +73,12 @@ namespace WPFKB_Maker.TFS.Rendering
             for (int i = 0; i < sum; i++)
             {
                 StrikeSoundEffectPlayer.Play();
+                Debug.console.Write("playing sound!");
             }
         }
         ~SheetPlayer()
         {
-            this.waveout.Dispose();
+            this.device.Dispose();
         }
         public void Play()
         {
@@ -98,13 +98,13 @@ namespace WPFKB_Maker.TFS.Rendering
             this.timer.Reset();
             this.timer.StartFromSeconds = timeSeconds;
             this.timer.Start();
-            this.waveout.Play();
+            this.device.Play();
         }
         public void Pause()
         {
             this.Playing = false;
             this.timer.Stop();
-            this.waveout.Pause();
+            this.device.Pause();
         }
     }
 

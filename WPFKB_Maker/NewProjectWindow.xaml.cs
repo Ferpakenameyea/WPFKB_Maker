@@ -74,7 +74,7 @@ namespace WPFKB_Maker
                 this.measureBPMButton.Content = "测量中……";
                 var bpm = await new BPMGetter(this.SelectedFilePath).Run();
                 this.measureBPMButton.IsEnabled = true;
-                this.measureBPMButton.Content = "自动测量";
+                this.measureBPMButton.Content = "自动测量（实验性）";
 
                 var result = MessageBox.Show($"自动检测的BPM为：{bpm}，要将其应用吗？", "检测", MessageBoxButton.YesNo, MessageBoxImage.Question);
                 if (result == MessageBoxResult.Yes)

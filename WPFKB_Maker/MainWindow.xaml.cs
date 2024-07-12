@@ -50,6 +50,13 @@ namespace WPFKB_Maker
             settings.TypeNameHandling = TypeNameHandling.Auto;
             StrikeSoundEffectPlayer.Initialize();
 
+            Project.ObservableCurrentProject.PropertyChanged += (sender, e) =>
+            {
+                this.projectName.Content = Project.Current.Meta.Name;
+                this.currentBpm.Content = string.Format(
+                    "BPM:{0:F2}", Project.Current.Meta.Bpm.ToString());
+            };
+
             this.Loaded += (sender, e) =>
             {
                 PresentationSource source = PresentationSource.FromVisual(this);
@@ -403,7 +410,6 @@ namespace WPFKB_Maker
                 SheetPlayer.Play();
             }
         }
-
         private void Button_Click(object sender, RoutedEventArgs e)
         {
             Stopwatch watch = new Stopwatch();
