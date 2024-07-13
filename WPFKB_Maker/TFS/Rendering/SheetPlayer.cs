@@ -70,11 +70,7 @@ namespace WPFKB_Maker.TFS.Rendering
                     lastTrigggered[note.BasePosition.Item2],
                     note.BasePosition.Item1);
             }
-            for (int i = 0; i < sum; i++)
-            {
-                StrikeSoundEffectPlayer.Play();
-                Debug.console.Write("playing sound!");
-            }
+            StrikeSoundEffectPlayer.PlayBatch(sum);
         }
         ~SheetPlayer()
         {

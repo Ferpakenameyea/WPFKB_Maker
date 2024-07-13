@@ -89,7 +89,7 @@
             <Grid Grid.Column="1">
                 <Grid Margin="6">
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="2*"/>
+                        <RowDefinition Height="2.2*"/>
                         <RowDefinition Height="2*"/>
                         <RowDefinition Height="1*"/>
                     </Grid.RowDefinitions>
@@ -109,7 +109,12 @@
                                 <DockPanel Margin="0,0,0,10">
                                     <Label Content="歌曲BPM" DockPanel.Dock="Left"/>
                                     <TextBox x:Name="bpmBox" Margin="10,0,0,0" Width="70" DockPanel.Dock="Left" VerticalAlignment="Center" LostFocus="CheckFloat" AcceptsReturn="False"/>
-                                    <Button x:Name="measureBPMButton" Content=" 自动测量（实验性） " HorizontalAlignment="Left" Margin="20,0,0,0" DockPanel.Dock="Left" Click="BPMButtonDown"/>
+                                    <Button x:Name="measureBPMButton" Content=" 自动测量（实验性） " HorizontalAlignment="Left" Margin="20,0,0,0" DockPanel.Dock="Left" Click="BPMButtonDown">
+                                        <Button.ToolTip>
+                                            <ToolTip Content="BPM检测使用SoundTouch API完成，有0.3~0.5左右的误差，可能导致累加性的错误"></ToolTip>
+                                        </Button.ToolTip>
+                                    </Button>
+                                    <Button x:Name="externalButton" Content="外部工具…" Margin="10,0,3,0" DockPanel.Dock="Left" Click="OpenExternalTool"></Button>
                                 </DockPanel>
                                 <DockPanel Margin="0,0,0,10">
                                     <Label Content="音符出现位置" VerticalAlignment="Center"/>
@@ -136,7 +141,7 @@
                             </StackPanel>
                         </Border>
                     </StackPanel>
-                    <Border Grid.Row="1" BorderBrush="#FFE6C885" BorderThickness="2" Margin="0,20,0,20">
+                    <Border Grid.Row="1" BorderBrush="#FFE6C885" BorderThickness="2" Margin="0,10,0,20">
                             <TextBlock Text="KBMaker WPF {VERSION}……" Margin="6" FontFamily="Consolas" x:Name="remindingBox" TextWrapping="Wrap"/>
                     </Border>
                     <Border Grid.Row="2" BorderBrush="#FFE6C885" BorderThickness="2">

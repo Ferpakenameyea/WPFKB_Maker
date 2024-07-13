@@ -220,20 +220,20 @@ namespace WPFKB_Maker.TFS.KBBeat
     }
     public class InPlayingEnvironment
     {
-        [JsonProperty("leftNotes")] private Note[] LeftNotes { get; set; }
-        [JsonProperty("rightNotes")] private Note[] RightNotes { get; set; }
-        public InPlayingEnvironment(Note[] leftNotes, Note[] rightNotes)
+        [JsonProperty("leftNotes")] private ExportedNote[] LeftNotes { get; set; }
+        [JsonProperty("rightNotes")] private ExportedNote[] RightNotes { get; set; }
+        public InPlayingEnvironment(ExportedNote[] leftNotes, ExportedNote[] rightNotes)
         {
             this.LeftNotes = leftNotes;
             this.RightNotes = rightNotes;
         }
-        public struct Note
+        public abstract class ExportedNote
         {
-            [JsonProperty("strikeTime")] public float StrikeTime;
-            [JsonProperty("trackIndex")] public int TrackIndex;
+            [JsonProperty("type")] public NoteType Type { get; set; }
+            [JsonProperty("strikeTime")] public float StrikeTime { get; set; }
+            [JsonProperty("trackIndex")] public int TrackIndex { get; set; }
 
-
-            public Note(float strikeTime, int trackIndex)
+            public ExportedNote(float strikeTime, int trackIndex)
             {
                 this.StrikeTime = strikeTime;
                 this.TrackIndex = trackIndex;
@@ -243,12 +243,67 @@ namespace WPFKB_Maker.TFS.KBBeat
                 return $"{{StrikeTime:{this.StrikeTime}; track:{this.TrackIndex}}}";
             }
         }
+        public class ExportedHitNote : ExportedNote
+        {
+            public ExportedHitNote(float strikeTime, int trackIndex) : base(strikeTime, trackIndex)
+            {
+                this.Type = NoteType.Hit;
+            }
+        }
+        public class ExportedHoldNote : ExportedNote
+        {
+            [JsonProperty("length")] public float Length { get; set; }
+
+            public ExportedHoldNote(float strikeTime, int trackIndex, float length) : base(strikeTime, trackIndex)
+            {
+                this.Type = NoteType.Hold;
+                this.Length = length;
+            }
+        }
+
+        [JsonIgnore] public static JsonSerializerSettings JsonSerializerSettings
+        {
+            get
+            {
+                var setting = new JsonSerializerSettings();
+                setting.Converters.Add(new NoteConverter());
+
+                return setting;
+            }
+        }
+
+        private class NoteConverter : JsonConverter
+        {
+            public override bool CanConvert(Type objectType)
+            {
+                return typeof(Note).IsAssignableFrom(objectType);
+            }
+
+            public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+            {
+                throw new NotImplementedException();
+            }
+
+            public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+            {
+                if (value is ExportedHitNote)
+                {
+                    var hit = value as ExportedHitNote;
+                    serializer.Serialize(writer, hit);
+                }
+                else
+                {
+                    var hold = value as ExportedHoldNote;
+                    serializer.Serialize(writer, hold);
+                }
+            }
+        }
     }
     public class Level
     {
-        [JsonProperty("meta")] 
+        [JsonProperty("meta")]
         public Meta Meta { get; set; }
-        [JsonProperty("inPlaying")] 
+        [JsonProperty("inPlaying")]
         public InPlayingEnvironment InPlaying { get; set; }
 
         public Level(Meta meta, InPlayingEnvironment notes)

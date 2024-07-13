@@ -201,7 +201,7 @@ namespace WPFKB_Maker.TFS
                             where
                                 ShouldRenderNote(note, renderFromRow, renderToRow)
                             select note;
-                lock (this.Sheet)
+                lock (this.NotesToRender)
                 {
                     foreach (var note in query)
                     {

@@ -212,8 +212,8 @@
             <Menu DockPanel.Dock="Top" Height="20">
                 <MenuItem Header="文件">
                     <MenuItem Header="新建项目" Click="NewProjectButtonDown"></MenuItem>
-                    <MenuItem Header="保存项目"></MenuItem>
-                    <MenuItem Header="另存项目"></MenuItem>
+                    <MenuItem Header="保存项目" Click="SaveButtonClick"></MenuItem>
+                    <MenuItem Header="另存项目" Click="SaveAnotherPathClick"></MenuItem>
                     <MenuItem Header="项目设置"></MenuItem>
                 </MenuItem>
                 <MenuItem Header="编辑">
@@ -237,6 +237,9 @@
                         </Button>
                         <Button Click="Button_Click">
                             <TextBlock Text="@" LineStackingStrategy="BlockLineHeight" FontFamily="Webdings"/>
+                        </Button>
+                        <Button Click="ExportLevel">
+                            <TextBlock Text="w" LineStackingStrategy="BlockLineHeight" FontFamily="Webdings"/>
                         </Button>
                     </ToolBar>
                     <ToolBar Style="{DynamicResource ToolBarStyle}">

@@ -44,6 +44,10 @@ namespace WPFKB_Maker.TFS.KBBeat
             {
                 savepath = project.SavingPath;
             }
+            else
+            {
+                project.SavingPath = savepath;
+            }
            
             Debug.console.Write($"正在创建项目文件 {savepath}");
             using (var stream = new FileStream(savepath, FileMode.Create))
@@ -159,6 +163,107 @@ namespace WPFKB_Maker.TFS.KBBeat
                 }
             });
             return new Project(metaBuffer, sheetBuffer);
+        }
+        public static async Task SaveProjectAsKBBeatPackageAsync(Project project, string savepath)
+        {
+            Level levelPart = Export(project);
+            byte[] music = project.Meta.MusicFile;
+            DirectoryInfo dir = new DirectoryInfo(savepath);
+            if (!dir.Exists)
+            {
+                dir.Create();
+            }
+            Task text, audio;
+
+            FileInfo
+                inplayingFile = new FileInfo(savepath + "\\" + "inPlaying.json"),
+                metaFile = new FileInfo(savepath + "\\" + "meta.json");
+
+            text = Task.Run(async () =>
+            {
+                var inplaying = JsonConvert.SerializeObject(levelPart.InPlaying, InPlayingEnvironment.JsonSerializerSettings);
+                var meta = JsonConvert.SerializeObject(levelPart.Meta);
+                Task t1, t2;
+                
+                using (var stream1 = inplayingFile.Open(FileMode.Create))
+                using (var stream2 = metaFile.Open(FileMode.Create))
+                {
+                    var bytes1 = Encoding.UTF8.GetBytes(inplaying);
+                    t1 = stream1.WriteAsync(bytes1, 0, bytes1.Length);
+
+                    var bytes2 = Encoding.UTF8.GetBytes(meta);
+                    t2 = t1 = stream2.WriteAsync(bytes2, 0, bytes2.Length);
+                    
+                    await Task.WhenAll(t1, t2);
+                }
+            });
+            string tempPath = "./temp" + project.Meta.Ext;
+
+            using (var tempStream = File.Create(tempPath))
+            {
+                await tempStream.WriteAsync(music, 0, music.Length);
+            }
+            audio = OggTransformer.TransformToOGGAsync(tempPath, savepath + "\\" + "mus.ogg");
+
+            await Task.WhenAll(text, audio);
+        }
+        private static Level Export(Project kbmakerProject)
+        {
+            InPlayingEnvironment env;
+            Meta meta;
+
+            meta = kbmakerProject.Meta;
+            List<InPlayingEnvironment.ExportedNote>
+                left = new List<InPlayingEnvironment.ExportedNote>(),
+                right = new List<InPlayingEnvironment.ExportedNote>();
+
+            float timePerRow = 60.0f / (meta.Bpm * 24f);
+
+            kbmakerProject.Sheet.Values.AsParallel()
+                .ForAll(note =>
+                {
+                    InPlayingEnvironment.ExportedNote exportedNote;
+
+                    float strikeTime = note.BasePosition.Item1 * timePerRow;
+
+                    if (note is HitNote)
+                    {
+                        var hit = note as HitNote;
+                        exportedNote = new InPlayingEnvironment.ExportedHitNote(strikeTime, hit.Position.Item2);
+                    }
+                    else
+                    {
+                        var hold = note as HoldNote;
+                        exportedNote = new InPlayingEnvironment.ExportedHoldNote(
+                            strikeTime,
+                            hold.BasePosition.Item2,
+                            hold.End.Item1 * timePerRow - strikeTime
+                        );
+                    }
+
+                    if (note.BasePosition.Item2 < meta.LeftTrackSize)
+                    {
+                        lock (left)
+                        {
+                            left.Add(exportedNote);
+                        }
+                    }
+                    else
+                    {
+                        exportedNote.TrackIndex -= meta.LeftTrackSize;
+                        lock (right)
+                        {
+                            right.Add(exportedNote);
+                        }
+                    }
+                });
+
+            left.Sort((n1, n2) => n1.StrikeTime.CompareTo(n2.StrikeTime));
+            right.Sort((n1, n2) => n1.StrikeTime.CompareTo(n2.StrikeTime));
+
+            env = new InPlayingEnvironment(left.ToArray(), right.ToArray());
+
+            return new Level(meta, env);
         }
     }
 

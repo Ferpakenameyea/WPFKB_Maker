@@ -3,6 +3,7 @@ using NAudio.Wave;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -189,11 +190,11 @@ namespace WPFKB_Maker
             {
                 if (this.SelectedFilePath == null)
                 {
-                    throw new ArgumentNullException("没有选择音乐文件！");
+                    throw new ArgumentNullException("音乐文件");
                 }
                 if (this.SavingFilePath == null)
                 {
-                    throw new ArgumentNullException("没有选择保存路径！");
+                    throw new ArgumentNullException("保存路径");
                 }
 
                 byte[] data = Array.Empty<byte>();
@@ -277,6 +278,21 @@ namespace WPFKB_Maker
                 savingPathBlock.Text = saveFileDialog.FileName;
                 SavingFilePath = saveFileDialog.FileName;
             }
+        }
+
+        private void OpenExternalTool(object sender, RoutedEventArgs e)
+        {
+            var result = MessageBox.Show("是否打开外部工具下载页面？", "外部工具", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (result != MessageBoxResult.Yes)
+            {
+                return;
+            }
+            string url = "https://mixmeister-bpm-analyzer.en.softonic.com/";
+            Process.Start(new ProcessStartInfo()
+            {
+                FileName = url,
+                UseShellExecute = true,
+            });
         }
     }
 }

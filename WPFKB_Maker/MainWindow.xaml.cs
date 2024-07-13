@@ -2,6 +2,7 @@
 using Newtonsoft.Json;
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
@@ -395,7 +396,7 @@ namespace WPFKB_Maker
         }
         private void PlayButtonClicked(object sender, RoutedEventArgs e)
         {
-            if (SheetPlayer?.Project == null)
+            if (Project.Current == null)
             {
                 MessageBox.Show("当前没有创建项目！");
                 return;
@@ -418,6 +419,63 @@ namespace WPFKB_Maker
             watch.Stop();
 
             Debug.console.Write($"Sound playing used {watch.ElapsedMilliseconds} ms");
+        }
+
+        private async void ExportLevel(object sender, RoutedEventArgs e)
+        {
+            if (Project.Current == null)
+            {
+                MessageBox.Show("当前没有项目可以导出！", "无项目", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+            var button = sender as Button;
+            button.IsEnabled = false;
+
+            var dialog = new System.Windows.Forms.FolderBrowserDialog
+            {
+                Description = "选择保存路径"
+            };
+
+            if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            {
+                await Project.SaveProjectAsKBBeatPackageAsync(Project.Current, dialog.SelectedPath);
+            }
+            button.IsEnabled = true;
+        }
+
+        private async void SaveAnotherPathClick(object sender, RoutedEventArgs e)
+        {
+            if (Project.Current == null)
+            {
+                MessageBox.Show("当前没有创建项目！");
+                return;
+            }
+
+            var menuItem = sender as MenuItem;
+            menuItem.IsEnabled = false;
+
+            SaveFileDialog saveFileDialog = new SaveFileDialog()
+            {
+                Title = "Save project",
+                Filter = "KBBeat wpf project (*.kbpwpf)|*.kbpwpf",
+                FileName = "新建项目.kbpwpf"
+            };
+            try
+            {
+                if (saveFileDialog.ShowDialog() == true)
+                {
+                    await Project.SaveNew(Project.Current, saveFileDialog.FileName)
+                        .ConfigureAwait(true);
+                }
+            }
+            catch (Exception err)
+            {
+                MessageBox.Show("另存项目时失败：" + err.Message);
+            }
+            finally
+            {
+                menuItem.IsEnabled = true;
+            }
         }
     }
 }

@@ -1,7 +1,9 @@
 ﻿using Microsoft.Extensions.ObjectPool;
 using NAudio.Wave;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Windows.Documents;
 
 namespace WPFKB_Maker.TFS.Sound
@@ -11,10 +13,23 @@ namespace WPFKB_Maker.TFS.Sound
         private static ObjectPool<StrikePlayer> players;
         private static byte[] data;
         private const int preload = 40;
+        private static Queue<StrikePlayer> queue = new Queue<StrikePlayer>();
 
         public static void Play()
         {
             players.Get().Play();
+        }
+
+        public static void PlayBatch(int count)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                queue.Enqueue(players.Get());
+            }
+            while(queue.Count > 0)
+            {
+                queue.Dequeue().Play();
+            }
         }
 
         public static void Initialize()
