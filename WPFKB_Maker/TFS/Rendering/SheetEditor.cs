@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
+using WPFKB_Maker.Editing;
 using WPFKB_Maker.TFS.KBBeat;
 
 namespace WPFKB_Maker.TFS.Rendering
@@ -15,7 +16,11 @@ namespace WPFKB_Maker.TFS.Rendering
         public (int, int)? Selector { get => Renderer.Selector; }
         public (int, int)? HoldStart { get; set; } = null;
         public ICollection<Note> SelectedNotes { get; } = new HashSet<Note>();
+        
         private List<(int, int)> removingPositions = new List<(int, int)>();
+        private List<Note> clipBoard = null;
+        private bool IsClipBoardSourceFromCut { get; set; } = false;
+
         public bool IsInSelection { get => SelectedNotes.Count > 0; }
         public SheetEditor(SheetRenderer renderer, SheetPlayer player)
         {
@@ -78,16 +83,28 @@ namespace WPFKB_Maker.TFS.Rendering
                     HoldStart.Value.Item2,
                     note);
             }
+            int row = HoldStart.Value.Item1;
+            int col = HoldStart.Value.Item2;
             HoldStart = null;
+            UndoRedo.PushCommand(
+                () => this.Sheet.DeleteNote(row, col),
+                () => this.Sheet.PutNote(row, col, note));
         }
         public void PutHitNode((int, int) selector)
         {
+            var note = new HitNote(selector);
             lock (this.Sheet)
             {
                 this.Sheet.PutNote(
                     selector.Item1,
-                    selector.Item2, new HitNote(selector));
+                    selector.Item2,
+                    note);
             }
+            int row = selector.Item1;
+            int col = selector.Item2;
+            UndoRedo.PushCommand(
+                () => this.Sheet.DeleteNote(row, col),
+                () => this.Sheet.PutNote(row, col, note));
         }
         private bool IsSelectedNote(Note note, (int, int) selector)
         {
@@ -165,6 +182,14 @@ namespace WPFKB_Maker.TFS.Rendering
         }
         public void FlushSelectionMoving()
         {
+            if (!this.SelectedNotes.Any() || 
+                this.SelectedNotes.First().BasePosition == this.removingPositions.First())
+            {
+                this.SelectedNotes.Clear();
+                this.removingPositions.Clear();
+                return;
+            }
+
             foreach (var position in this.removingPositions)
             {
                 this.Sheet.DeleteNote(position.Item1, position.Item2);
@@ -175,9 +200,249 @@ namespace WPFKB_Maker.TFS.Rendering
                 this.Sheet.PutNote(note.BasePosition.Item1, note.BasePosition.Item2, note);
             }
 
+            var add = this.SelectedNotes.Select(note => note.BasePosition).ToArray();
+            var remov = this.removingPositions.ToArray();
+            var targets = this.SelectedNotes.ToArray();
+
             Debug.console.Write("Moving flushed");
+            
+            UndoRedo.PushCommand(
+                () =>
+                {
+                    for (int i = 0; i < add.Length; i++)
+                    {
+                        this.Sheet.DeleteNote(
+                            add[i].Item1,
+                            add[i].Item2
+                            );
+
+                        this.Sheet.PutNote(
+                            remov[i].Item1,
+                            remov[i].Item2,
+                            targets[i]
+                            );
+                    }
+                },
+                () => 
+                {
+                    foreach (var position in remov)
+                    {
+                        this.Sheet.DeleteNote(position.Item1, position.Item2);
+                    }
+
+                    for (int i = 0; i < targets.Length; i++)
+                    {
+                        this.Sheet.PutNote(add[i].Item1, add[i].Item2, targets[i]);
+                    }
+                }
+            );
+            
             this.SelectedNotes.Clear();
             this.removingPositions.Clear();
+        }
+        public void ClearSheet()
+        {
+            this.SelectedNotes.Clear();
+            this.removingPositions.Clear();
+
+            var collection = this.Sheet.Values.ToArray();
+            this.Sheet.Clear();
+            UndoRedo.PushCommand(
+                () =>
+                {
+                    foreach (var note in collection)
+                    {
+                        Sheet.PutNote(note.BasePosition.Item1, note.BasePosition.Item2, note);
+                    }
+                },
+                () =>
+                {
+                    this.SelectedNotes.Clear();
+                    this.removingPositions.Clear();
+                    this.Sheet.Clear();
+                });
+
+        }
+        public void DeleteSelectedNotes()
+        {
+            FlushSelectionNoCleaning(out var before, out var after, out var targets);
+
+            foreach (var note in this.SelectedNotes)
+            {
+                this.Sheet.DeleteNote(note.BasePosition.Item1, note.BasePosition.Item2);
+            }
+
+            UndoRedo.PushCommand(
+                () =>
+                {
+                    for (int i = 0; i < targets.Length; i++)
+                    {
+                        this.Sheet.PutNote(after[i].Item1, after[i].Item2, targets[i]);
+                    }
+                },
+                () =>
+                {
+                    foreach (var note in targets)
+                    {
+                        this.Sheet.DeleteNote(note.BasePosition.Item1, note.BasePosition.Item2);
+                    }
+                });
+
+            this.SelectedNotes.Clear();
+            this.removingPositions.Clear();
+        }
+        public void CopySelectedNotes()
+        {
+            if (this.SelectedNotes.Count == 0)
+            {
+                return;
+            }
+
+            this.clipBoard = this.SelectedNotes.Select(note => note.Clone()).ToList();
+            this.IsClipBoardSourceFromCut = false;
+        }
+        public void PasteSelectedNotes()
+        {
+            if (this.clipBoard == null || this.clipBoard.Count == 0)
+            {
+                return;
+            }
+
+            var targetPosition = this.Renderer.Agent.GetMousePosition(this.Renderer);
+            if (targetPosition == null)
+            {
+                return;
+            }
+            
+            this.FlushSelectionMoving();
+
+            var firstPosition = this.clipBoard[0].BasePosition;
+            var delta =
+                (targetPosition.Value.Item1 - firstPosition.Item1,
+                targetPosition.Value.Item2 - firstPosition.Item2);
+
+            Note[] cloned = new Note[this.clipBoard.Count];
+            int i = 0;
+
+            clipBoard.ForEach(note =>
+            {
+                var clone = note.Clone();
+                cloned[i++] = clone;
+                clone.Move(delta);
+                this.SelectedNotes.Add(clone);
+                this.removingPositions.Add(clone.BasePosition);
+                Sheet.PutNote(clone.BasePosition.Item1, clone.BasePosition.Item2, clone);
+            });
+
+            UndoRedo.PushCommand(
+                () =>
+                {
+                    foreach (var cl in cloned)
+                    {
+                        Sheet.DeleteNote(cl.BasePosition.Item1, cl.BasePosition.Item2);
+                    }
+                },
+                () =>
+                {
+                    foreach (var cl in cloned)
+                    {
+                        Sheet.PutNote(cl.BasePosition.Item1, cl.BasePosition.Item2, cl);
+                    }
+                });
+            if (IsClipBoardSourceFromCut)
+            {
+                this.clipBoard = null;
+            }
+        }
+        public void CutSelectedNotes()
+        {
+            FlushSelectionNoCleaning(out var before, out var after, out var targets);
+            this.clipBoard = targets.ToList();
+            this.SelectedNotes.Clear();
+            this.removingPositions.Clear();
+        
+            foreach (var n in targets)
+            {
+                this.Sheet.DeleteNote(n.BasePosition.Item1, n.BasePosition.Item2);
+            }
+            this.IsClipBoardSourceFromCut = true;
+            UndoRedo.PushCommand(
+                () =>
+                {
+                    for (int i = 0; i < targets.Length; i++)
+                    {
+                        this.Sheet.PutNote(after[i].Item1, after[i].Item2, targets[i]);
+                    }
+                },
+                () =>
+                {
+                    foreach (var n in targets)
+                    {
+                        this.Sheet.DeleteNote(n.BasePosition.Item1, n.BasePosition.Item2);
+                    }
+                });
+        }
+
+        private void FlushSelectionNoCleaning(out (int, int)[] _before, out (int, int)[] _after, out Note[] _targets)
+        {
+            if (this.SelectedNotes.Count == 0)
+            {
+                _before = Array.Empty<(int, int)>();
+                _after = Array.Empty<(int, int)>();
+                _targets = Array.Empty<Note>();
+
+                return;
+            }
+
+            // flush first
+            foreach (var position in this.removingPositions)
+            {
+                this.Sheet.DeleteNote(position.Item1, position.Item2);
+            }
+
+            foreach (var note in this.SelectedNotes)
+            {
+                this.Sheet.PutNote(note.BasePosition.Item1, note.BasePosition.Item2, note);
+            }
+
+            var after = this.SelectedNotes.Select(note => note.BasePosition).ToArray();
+            var before = this.removingPositions.ToArray();
+            var targets = this.SelectedNotes.ToArray();
+
+            UndoRedo.PushCommand(
+                () =>
+                {
+                    for (int i = 0; i < after.Length; i++)
+                    {
+                        this.Sheet.DeleteNote(
+                            after[i].Item1,
+                            after[i].Item2
+                            );
+
+                        this.Sheet.PutNote(
+                            before[i].Item1,
+                            before[i].Item2,
+                            targets[i]
+                            );
+                    }
+                },
+                () =>
+                {
+                    foreach (var position in before)
+                    {
+                        this.Sheet.DeleteNote(position.Item1, position.Item2);
+                    }
+
+                    for (int i = 0; i < targets.Length; i++)
+                    {
+                        this.Sheet.PutNote(after[i].Item1, after[i].Item2, targets[i]);
+                    }
+                }
+            );
+
+            _after = after;
+            _before = before;
+            _targets = targets;
         }
     }
 }

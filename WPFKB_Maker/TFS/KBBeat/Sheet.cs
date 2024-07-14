@@ -55,6 +55,7 @@ namespace WPFKB_Maker.TFS.KBBeat
             }
         }
         public static JsonSerializerSettings SheetJsonSerializerSettings { get; }
+        public abstract void Clear();
         static Sheet()
         {
             SheetJsonSerializerSettings = new JsonSerializerSettings();
@@ -86,6 +87,7 @@ namespace WPFKB_Maker.TFS.KBBeat
             if (!notes.ContainsKey((row, column)))
             {
                 notes[(row, column)] = note;
+                note.BasePosition = (row, column);
                 return true;
             }
             else
@@ -93,6 +95,12 @@ namespace WPFKB_Maker.TFS.KBBeat
                 return false;
             }
         }
+
+        public override void Clear()
+        {
+            this.notes.Clear();
+        }
+
         public override ICollection<Note> Values => this.notes.Values;
     }
 

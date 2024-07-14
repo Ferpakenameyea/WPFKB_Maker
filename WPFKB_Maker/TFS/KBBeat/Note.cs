@@ -8,7 +8,7 @@ namespace WPFKB_Maker.TFS.KBBeat
     {
         [JsonProperty("t")] public NoteType Type { get; protected set; }
         [JsonProperty("d")] public (int, int)[] Datas { get; protected set; }
-        [JsonIgnore] public (int, int) BasePosition { get => this.Datas[0]; set => this.Datas[0] = value; }
+        [JsonIgnore] public virtual (int, int) BasePosition { get => this.Datas[0]; set => this.Datas[0] = value; }
 
         protected Note(int dataArraySize, NoteType noteType)
         {
@@ -25,6 +25,8 @@ namespace WPFKB_Maker.TFS.KBBeat
         {
             this.BasePosition = this.BasePosition.Add(delta);
         }
+
+        public abstract Note Clone();
     }
 
     public class HitNote : Note
@@ -39,6 +41,10 @@ namespace WPFKB_Maker.TFS.KBBeat
         {
             return $"KBBeat-Hit: {this.BasePosition}";
         }
+        public override Note Clone()
+        {
+            return new HitNote(this.BasePosition);
+        }
     }
 
     public class HoldNote : Note
@@ -49,6 +55,19 @@ namespace WPFKB_Maker.TFS.KBBeat
         }
         [JsonIgnore] public (int, int) Start { get => this.Datas[0]; set => this.Datas[0] = value; }
         [JsonIgnore] public (int, int) End { get => this.Datas[1]; set => this.Datas[1] = value; }
+        
+        [JsonIgnore] public override (int, int) BasePosition 
+        { 
+            get => base.BasePosition;
+            set
+            {
+                var len = this.End.Item1 - this.Start.Item1;
+                base.BasePosition = value;
+
+                this.End = (base.BasePosition.Item1 + len, base.BasePosition.Item2);
+            }
+        }
+
         [JsonIgnore]
         public ((int, int), (int, int)) Value
         {
@@ -82,6 +101,11 @@ namespace WPFKB_Maker.TFS.KBBeat
         {
             this.Start = this.Start.Add(delta);
             this.End = this.End.Add(delta);
+        }
+
+        public override Note Clone()
+        {
+            return new HoldNote((this.Start, this.End));
         }
     }
 

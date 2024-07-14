@@ -74,7 +74,7 @@ namespace WPFKB_Maker.TFS.Rendering
         }
         ~SheetPlayer()
         {
-            this.device.Dispose();
+            this.device?.Dispose();
         }
         public void Play()
         {

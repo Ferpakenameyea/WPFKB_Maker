@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using WPFKB_Maker.Editing;
 using WPFKB_Maker.TFS;
 using WPFKB_Maker.TFS.KBBeat;
 using WPFKB_Maker.TFS.Rendering;
@@ -91,7 +92,52 @@ namespace WPFKB_Maker
             {
                 this.debugConsole?.Close();
             };
+            KeyDown += HandleHotKey;
+
             this.InitializeToggleButtons();
+        }
+
+        private void HandleHotKey(object sender, KeyEventArgs e)
+        {
+            if (Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                switch (e.Key)
+                {
+                    case Key.Z:
+                        if (this.SheetEditor.IsInSelection)
+                        {
+                            this.SheetEditor.FlushSelectionMoving();
+                            this.isInDraggingMoving = false;
+                        }
+                        UndoRedo.Undo();
+                        break;
+                    case Key.Y:
+                        if (this.SheetEditor.IsInSelection)
+                        {
+                            this.SheetEditor.FlushSelectionMoving();
+                            this.isInDraggingMoving = false;
+                        }
+                        UndoRedo.Redo();
+                        break;
+                    case Key.C:
+                        this.SheetEditor.CopySelectedNotes();
+                        break;
+                    case Key.V:
+                        this.SheetEditor.PasteSelectedNotes();
+                        break;
+                    case Key.X:
+                        this.SheetEditor.CutSelectedNotes();
+                        break;
+                }
+                return;
+            }
+
+            switch (e.Key)
+            {
+                case Key.Delete:
+                    this.SheetEditor?.DeleteSelectedNotes();
+                    break;
+            }
         }
 
         private void ScrollSheetRenderer(object sender, MouseWheelEventArgs e)
@@ -475,6 +521,27 @@ namespace WPFKB_Maker
             finally
             {
                 menuItem.IsEnabled = true;
+            }
+        }
+
+        private void UndoClick(object sender, RoutedEventArgs e)
+        {
+            UndoRedo.Undo();
+        }
+
+        private void RedoClick(object sender, RoutedEventArgs e)
+        {
+            UndoRedo.Redo();
+        }
+
+        private void CleanClick(object sender, RoutedEventArgs e)
+        {
+            if (MessageBox.Show(
+                "确定要清空整个项目吗？", 
+                "警告", MessageBoxButton.YesNo, 
+                MessageBoxImage.Question) == MessageBoxResult.Yes)
+            {
+                SheetEditor.ClearSheet();
             }
         }
     }

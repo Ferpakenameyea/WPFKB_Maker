@@ -217,9 +217,9 @@
                     <MenuItem Header="项目设置"></MenuItem>
                 </MenuItem>
                 <MenuItem Header="编辑">
-                    <MenuItem Header="撤销"></MenuItem>
-                    <MenuItem Header="重做"></MenuItem>
-                    <MenuItem Header="清空"></MenuItem>
+                    <MenuItem Header="撤销" Click="UndoClick"></MenuItem>
+                    <MenuItem Header="重做" Click="RedoClick"></MenuItem>
+                    <MenuItem Header="清空" Click="CleanClick"></MenuItem>
                 </MenuItem>
             </Menu>
 
