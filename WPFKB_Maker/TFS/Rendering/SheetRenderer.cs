@@ -85,7 +85,13 @@ namespace WPFKB_Maker.TFS
         public Func<ICollection<Note>> SelectedNotesProvider { get; set; } = () => Array.Empty<Note>();
         public (int, int)? Selector { get; set; }
         public double TriggerLineY { get; set; } = 50;
-        public int TriggerLineRow { get => (int)Math.Floor((this.RenderFromY + this.TriggerLineY) / this.BitmapVerticalHiddenRowDistance); }
+        public int TriggerLineRow { 
+            get => (int)Math.Floor((this.RenderFromY + this.TriggerLineY) / this.BitmapVerticalHiddenRowDistance);
+            set
+            {
+                this.TriggerAbsoluteY = value * this.BitmapVerticalHiddenRowDistance;
+            }
+        }
         public const double minZoom = 0.5;
         public const double maxZoom = 4.0;
 

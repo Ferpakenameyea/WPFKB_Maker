@@ -161,7 +161,9 @@ namespace WPFKB_Maker
         {
             if (this.SheetRenderer != null && this.zoomText != null)
             {
+                int oldRow = this.SheetRenderer.TriggerLineRow;
                 this.SheetRenderer.Zoom = e.NewValue;
+                this.SheetRenderer.TriggerLineRow = oldRow;
                 this.zoomText.Text = string.Format("缩放 {0:0.0}|4.0", e.NewValue);
             }
         }

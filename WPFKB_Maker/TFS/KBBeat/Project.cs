@@ -7,6 +7,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net.Http.Headers;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
@@ -222,6 +223,11 @@ namespace WPFKB_Maker.TFS.KBBeat
             kbmakerProject.Sheet.Values.AsParallel()
                 .ForAll(note =>
                 {
+                    if (note.BasePosition.Item2 < 0 || note.BasePosition.Item2 >= kbmakerProject.Sheet.Column)
+                    {
+                        return;
+                    }
+
                     InPlayingEnvironment.ExportedNote exportedNote;
 
                     float strikeTime = note.BasePosition.Item1 * timePerRow;
