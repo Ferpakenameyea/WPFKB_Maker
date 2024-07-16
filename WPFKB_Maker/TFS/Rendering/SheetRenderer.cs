@@ -43,7 +43,7 @@ namespace WPFKB_Maker.TFS
         public double BitmapVerticalHiddenRowDistance { get => this.BitmapHeight / (96 * zoom); }
         public int RenderFromRow { get => (int)Math.Ceiling(this.RenderFromY / BitmapVerticalHiddenRowDistance); }
         public int RenderToRow { get => (int)Math.Floor((this.RenderFromY + this.BitmapHeight) / BitmapVerticalHiddenRowDistance); }
-        public double BitmapHeightPerBeat { get => this.BitmapHeight / (this.zoom * 4); }
+        public double BitmapHeightPerBeat { get => this.BitmapHeight / (this.zoom); }
         public double TriggerAbsoluteY 
         { 
             get => TriggerLineY + this.RenderFromY; 
@@ -93,7 +93,7 @@ namespace WPFKB_Maker.TFS
             }
         }
         public const double minZoom = 0.5;
-        public const double maxZoom = 4.0;
+        public const double maxZoom = 12.0;
 
         private SemaphoreSlim renderMutex = new SemaphoreSlim(1, 1);
 
@@ -491,7 +491,9 @@ namespace WPFKB_Maker.TFS
         {
             public override (int, int)? GetPositionBitmap(SheetRenderer sheetRenderer, Point bitmapPosition)
             {
-                var absolute = new Point(bitmapPosition.X, sheetRenderer.BitmapHeight - bitmapPosition.Y + sheetRenderer.RenderFromY);
+                var absolute = new Point(
+                    bitmapPosition.X, 
+                    sheetRenderer.BitmapHeight - bitmapPosition.Y + sheetRenderer.RenderFromY);
 
                 var result = (
                     (int)Math.Round(absolute.Y / sheetRenderer.BitmapVerticalRenderDistance) * 24,

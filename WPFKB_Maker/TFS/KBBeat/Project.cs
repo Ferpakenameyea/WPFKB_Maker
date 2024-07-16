@@ -218,7 +218,7 @@ namespace WPFKB_Maker.TFS.KBBeat
                 left = new List<InPlayingEnvironment.ExportedNote>(),
                 right = new List<InPlayingEnvironment.ExportedNote>();
 
-            float timePerRow = 60.0f / (meta.Bpm * 24f);
+            float timePerRow = 60.0f / (meta.Bpm * 96f);
 
             kbmakerProject.Sheet.Values.AsParallel()
                 .ForAll(note =>

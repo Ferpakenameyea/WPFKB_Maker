@@ -86,6 +86,7 @@ namespace WPFKB_Maker.TFS.KBBeat
         {
             if (!notes.ContainsKey((row, column)))
             {
+                Debug.console.Write($"Note put at {row},{column}");
                 notes[(row, column)] = note;
                 note.BasePosition = (row, column);
                 return true;

@@ -267,8 +267,8 @@
                     </Grid.ColumnDefinitions>
 
                     <DockPanel Grid.Column="0">
-                        <Slider x:Name="zoomSlider" VerticalAlignment="Center" DockPanel.Dock="Left" MinWidth="160" Minimum="0.5" Maximum="4.0" ValueChanged="ZoomChanged"/>
-                        <TextBlock x:Name="zoomText" Text="缩放：1.0|4.0" DockPanel.Dock="Left" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                        <Slider x:Name="zoomSlider" VerticalAlignment="Center" DockPanel.Dock="Left" MinWidth="160" Minimum="0.5" Maximum="12.0" ValueChanged="ZoomChanged"/>
+                        <TextBlock x:Name="zoomText" Text="缩放：1.0|12.0" DockPanel.Dock="Left" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                     </DockPanel>
                 </Grid>
             </DockPanel>

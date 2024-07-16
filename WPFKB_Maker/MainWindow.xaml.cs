@@ -164,7 +164,7 @@ namespace WPFKB_Maker
                 int oldRow = this.SheetRenderer.TriggerLineRow;
                 this.SheetRenderer.Zoom = e.NewValue;
                 this.SheetRenderer.TriggerLineRow = oldRow;
-                this.zoomText.Text = string.Format("缩放 {0:0.0}|4.0", e.NewValue);
+                this.zoomText.Text = string.Format("缩放 {0:0.0}|12.0", e.NewValue);
             }
         }
         private void InitializeToggleButtons()
