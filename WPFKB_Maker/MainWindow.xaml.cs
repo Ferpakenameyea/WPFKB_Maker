@@ -1,6 +1,7 @@
 ﻿using Microsoft.Win32;
 using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -97,7 +98,7 @@ namespace WPFKB_Maker
             this.InitializeToggleButtons();
         }
 
-        private void HandleHotKey(object sender, KeyEventArgs e)
+        private async void HandleHotKey(object sender, KeyEventArgs e)
         {
             if (Keyboard.Modifiers == ModifierKeys.Control)
             {
@@ -127,6 +128,17 @@ namespace WPFKB_Maker
                         break;
                     case Key.X:
                         this.SheetEditor.CutSelectedNotes();
+                        break;
+                    case Key.S:
+                        if (Project.Current != null && !Project.SavingInProgress)
+                        {
+                            this.progressBar.Value = 30;
+                            this.currenStatusLabel.Content = "保存中";
+                            await Project.SaveNew(Project.Current)
+                                .ConfigureAwait(true);
+                            this.progressBar.Value = 100;
+                            this.currenStatusLabel.Content = "就绪";
+                        }
                         break;
                 }
                 return;
@@ -398,7 +410,12 @@ namespace WPFKB_Maker
 
             var button = sender as Button;
             button.IsEnabled = false;
-            await Project.SaveNew(Project.Current).ConfigureAwait(true);
+            this.progressBar.Value = 30;
+            this.currenStatusLabel.Content = "保存中";
+            await Project.SaveNew(Project.Current)
+                .ConfigureAwait(true);
+            this.progressBar.Value = 100;
+            this.currenStatusLabel.Content = "就绪";
             button.IsEnabled = true;
         }
         private async void OpenAnotherProjectButtonDown(object sender, RoutedEventArgs e)
@@ -433,7 +450,16 @@ namespace WPFKB_Maker
             switch (result)
             {
                 case MessageBoxResult.Yes:
-                    await Project.SaveNew(Project.Current);
+                    await Task.Run(() =>
+                    {
+                        while (Project.SavingInProgress) ;
+                    });
+                    this.progressBar.Value = 30;
+                    this.currenStatusLabel.Content = "保存中";
+                    await Project.SaveNew(Project.Current)
+                        .ConfigureAwait(true);
+                    this.progressBar.Value = 100;
+                    this.currenStatusLabel.Content = "就绪";
                     return true;
                 case MessageBoxResult.No:
                     return true;
@@ -459,14 +485,15 @@ namespace WPFKB_Maker
                 SheetPlayer.Play();
             }
         }
-        private void Button_Click(object sender, RoutedEventArgs e)
+        private void EditProject(object sender, RoutedEventArgs e)
         {
-            Stopwatch watch = new Stopwatch();
-            watch.Start();
-            StrikeSoundEffectPlayer.Play();
-            watch.Stop();
+            if (Project.Current == null)
+            {
+                MessageBox.Show("当前不在任何项目中！");
+                return;
+            }
 
-            Debug.console.Write($"Sound playing used {watch.ElapsedMilliseconds} ms");
+            new EditProjectWindow(this, Project.Current).Show();
         }
 
         private async void ExportLevel(object sender, RoutedEventArgs e)
@@ -512,8 +539,12 @@ namespace WPFKB_Maker
             {
                 if (saveFileDialog.ShowDialog() == true)
                 {
+                    this.progressBar.Value = 30;
+                    this.currenStatusLabel.Content = "保存中";
                     await Project.SaveNew(Project.Current, saveFileDialog.FileName)
                         .ConfigureAwait(true);
+                    this.progressBar.Value = 100;
+                    this.currenStatusLabel.Content = "就绪";
                 }
             }
             catch (Exception err)

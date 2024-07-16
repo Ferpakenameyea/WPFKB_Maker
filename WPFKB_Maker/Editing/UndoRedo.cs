@@ -42,6 +42,11 @@ namespace WPFKB_Maker.Editing
             }
         }
 
+        public static void Clear()
+        {
+            list.Clear();
+        }
+
         public static void Undo()
         {
             if (cur == null)

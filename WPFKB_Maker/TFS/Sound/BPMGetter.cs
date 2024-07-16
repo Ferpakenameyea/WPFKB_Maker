@@ -3,23 +3,33 @@ using SoundTouch;
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
 namespace WPFKB_Maker.TFS.Sound
 {
     public class BPMGetter
     {
-        private readonly string path;
+        private readonly Stream stream;
+        private readonly string ext;
         private byte[] bytebuffer = new byte[4096];
         private float[] floatbuffer = new float[1024];
-        public BPMGetter(string path)
+        
+        
+        
+        public BPMGetter(string path) : 
+            this(new FileStream(path, FileMode.Open), new FileInfo(path).Extension)
+        {}
+
+        public BPMGetter(Stream stream, string ext)
         {
-            this.path = path;
+            this.stream = stream;
+            this.ext = ext;
         }
 
         public async Task<float> Run()
         {
-            var file = WaveStreamFactory.GetWaveStream(path);
+            var file = WaveStreamFactory.GetWaveStream(stream, ext);
             var inputStream = new WaveChannel32(file);
             inputStream.PadWithZeroes = false;
             var channel = inputStream.WaveFormat.Channels;
@@ -45,22 +55,16 @@ namespace WPFKB_Maker.TFS.Sound
     }
     public static class WaveStreamFactory
     {
-        public static WaveStream GetWaveStream(string path)
+        public static WaveStream GetWaveStream(Stream stream, string ext)
         {
-            FileInfo fileInfo = new FileInfo(path);
-            if (!fileInfo.Exists)
-            {
-                throw new FileNotFoundException($"file with path {path} not found");
-            }
-
-            switch(fileInfo.Extension)
+            switch(ext)
             {
                 case ".mp3":
-                    return new Mp3FileReader(path);
+                    return new Mp3FileReader(stream);
                 case ".wav":
-                    return new WaveFileReader(path);
+                    return new WaveFileReader(stream);
                 default:
-                    throw new NotSupportedException($"string format of {fileInfo.Extension} is not supported");
+                    throw new NotSupportedException($"string format of {ext} is not supported");
             }
         }
     }

@@ -26,6 +26,7 @@ namespace WPFKB_Maker.TFS.KBBeat
             = new ObservableObject<Project>(null);
         public Meta Meta { get; set; }
         public Sheet Sheet { get; set; }
+        public static bool SavingInProgress { get; private set; } = false;
         [JsonIgnore] public string SavingPath { get; set; } = null;
 
         public Project(Meta meta, Sheet sheet, string savingPath)
@@ -41,6 +42,7 @@ namespace WPFKB_Maker.TFS.KBBeat
         }
         public static async Task SaveNew(Project project, string savepath = null)
         {
+            SavingInProgress = true;
             if (savepath == null)
             {
                 savepath = project.SavingPath;
@@ -61,6 +63,7 @@ namespace WPFKB_Maker.TFS.KBBeat
                         .ConfigureAwait(true);
                 }
             }
+            SavingInProgress = false;
         }
         private static async Task SaveToZipNew(ZipArchive zipArchive, Project project)
         {
@@ -290,6 +293,11 @@ namespace WPFKB_Maker.TFS.KBBeat
                 this.value = value;
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(this.value)));
             }
+        }
+
+        public void BroadCast()
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(this.value)));
         }
     }
 }
