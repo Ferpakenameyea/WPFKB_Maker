@@ -626,5 +626,36 @@ namespace WPFKB_Maker
             this.SheetRenderer.TriggerLineCurrentTimeSecond = time;
         }
 
+        private void RenderStrategySelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            // Skip initialization
+            if (e.RemovedItems.Count == 0)
+            {
+                return;
+            }
+
+            var selected = (sender as ComboBox).SelectedItem as ComboBoxItem;
+            switch (selected.Tag)
+            {
+                case "1/4":
+                    this.SheetRenderer.RenderType = RenderStrategyType.R1_4;
+                    break;
+                case "1/3":
+                    this.SheetRenderer.RenderType = RenderStrategyType.R1_3;
+                    break;
+                case "1/2":
+                    this.SheetRenderer.RenderType = RenderStrategyType.R1_2;
+                    break;
+                case "1/6":
+                case "1/8":
+                case "1/12":
+                case "1/24":
+                case "1/32":
+                default:
+                    MessageBox.Show($"错误！未知的渲染模式：{selected.Tag}");
+                    (sender as ComboBox).SelectedItem = e.RemovedItems[0];
+                    break;
+            }
+        }
     }
 }

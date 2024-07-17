@@ -11,7 +11,6 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using WPFKB_Maker.TFS.KBBeat;
-using WPFKB_Maker.TFS.Rendering;
 
 namespace WPFKB_Maker.TFS
 {
@@ -167,13 +166,44 @@ namespace WPFKB_Maker.TFS
             TriggerLinePen = new Pen(Brushes.Lime, 2),
 
             NotePen1_1 = new Pen(Brushes.Purple, 2),
-            NotePen1_4 = new Pen(Brushes.Blue, 2),
+            NotePen1_2 = new Pen[]
+            {
+                new Pen(Brushes.DarkCyan, 2)
+            },
+            NotePen1_3 = new Pen[]
+            {
+                new Pen(Brushes.SpringGreen, 2)
+            },
+            NotePen1_4 = new Pen[]
+            {
+                new Pen(Brushes.Blue, 2),
+                new Pen(Brushes.Green, 2)
+            },
+            NotePen1_6 = new Pen[]
+            {
 
-            Note_1_1Percentage = 1,
-            Note_1_4Percentage = 0.8,
+            },
+            NotePen1_8 = new Pen[]
+            {
+
+            },
+            NotePen1_12 = new Pen[]
+            {
+
+            },
+            NotePen1_24 = new Pen[]
+            {
+
+            },
+            NotePen1_32 = new Pen[]
+            {
+
+            },
+            FullNotePercentage = 1,
+            NotFullNotePercentage = 0.8,
 
             BeatTextFormatProvider = (content) => new FormattedText(
-                content, CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
+                content, CultureInfo.CurrentCulture, System.Windows.FlowDirection.LeftToRight,
                 new Typeface("Consolas"), 30, Brushes.Black, 1),
 
             SelectorBrush = new SolidColorBrush(new Color()
@@ -381,9 +411,17 @@ namespace WPFKB_Maker.TFS
         public Pen BorderPen { get; set; }
         public Pen TriggerLinePen { get; set; }
         public Pen NotePen1_1 { get; set; }
-        public Pen NotePen1_4 { get; set; }
-        public double Note_1_1Percentage { get; set; }
-        public double Note_1_4Percentage { get; set; }
+        public Pen[] NotePen1_2 { get; set; }
+        public Pen[] NotePen1_3 { get; set; }
+        public Pen[] NotePen1_4 { get; set; }
+        public Pen[] NotePen1_6 { get; set; }
+        public Pen[] NotePen1_8 { get; set; }
+        public Pen[] NotePen1_12 { get; set; }
+        public Pen[] NotePen1_24 { get; set; }
+        public Pen[] NotePen1_32 { get; set; }
+
+        public double FullNotePercentage { get; set; }
+        public double NotFullNotePercentage { get; set; }
         public Func<string, FormattedText> BeatTextFormatProvider { get; set; }
         public Func<Point, Rect> SelectorProvider { get; set; }
         public Brush SelectorBrush { get; set; }
@@ -402,6 +440,10 @@ namespace WPFKB_Maker.TFS
         {
             switch (type)
             {
+                case RenderStrategyType.R1_2:
+                    return new Strategy_1_2();
+                case RenderStrategyType.R1_3:
+                    return new Strategy_1_3();
                 case RenderStrategyType.R1_4:
                     return new Strategy_1_4();
                 default:
@@ -424,8 +466,55 @@ namespace WPFKB_Maker.TFS
     }
     public abstract class GridRenderStrategy
     {
-        public abstract void Render(SheetRenderer sheetRenderer, DrawingContext context);
+        public void Render(SheetRenderer sheetRenderer, DrawingContext context)
+        {
+            double verticalDistance = GetVerticalDistance(sheetRenderer);
+            double horizontalDistance = sheetRenderer.BitmapColumnWidth;
+
+            int row = (int)Math.Ceiling(sheetRenderer.RenderFromY / verticalDistance);
+
+            double y = sheetRenderer.BitmapHeight - (row * verticalDistance - sheetRenderer.RenderFromY);
+
+            double halfColumn = sheetRenderer.BitmapColumnWidth / 2;
+            double startX = halfColumn;
+
+            double offset = this.PickOffset(row, halfColumn, sheetRenderer.Style);
+
+            Point start = new Point(startX - offset, y);
+            Point end = new Point(startX + offset, y);
+
+            while (start.Y >= 0)
+            {
+                if (ShouldRenderText(row))
+                {
+                    context.DrawText(sheetRenderer.Style.BeatTextFormatProvider((row / 4).ToString()),
+                        new Point(20, start.Y));
+                }
+
+                var pen = PickPen(row, sheetRenderer.Style);
+
+                for (int i = 0; i < sheetRenderer.Sheet.Column; i++)
+                {
+                    context.DrawLine(pen, start, end);
+                    start.X += horizontalDistance;
+                    end.X += horizontalDistance;
+                }
+
+                row++;
+
+                offset = this.PickOffset(row, halfColumn, sheetRenderer.Style);
+
+                start.Y -= verticalDistance;
+                end.Y -= verticalDistance;
+                start.X = startX - offset;
+                end.X = startX + offset;
+            }
+        }
         public abstract double GetVerticalDistance(SheetRenderer sheetRenderer);
+        protected abstract double PickOffset(int row, double halfColumn, SheetRenderStyle style);
+        protected abstract Pen PickPen(int row, SheetRenderStyle style);
+        protected abstract bool ShouldRenderText(int row);
+
         public abstract InteractAgent Agent { get; }
         public abstract class InteractAgent
         {
@@ -461,51 +550,27 @@ namespace WPFKB_Maker.TFS
     {
         private InteractAgent agent = new Agent_1_4();
         public override double GetVerticalDistance(SheetRenderer sheetRenderer) => sheetRenderer.BitmapHeight / (sheetRenderer.Zoom * 4);
-        public override void Render(SheetRenderer sheetRenderer, DrawingContext context)
+
+        protected override bool ShouldRenderText(int row) => row % 4 == 0;
+
+        protected override double PickOffset(int row, double halfColumn, SheetRenderStyle style)
         {
-            double verticalDistance = GetVerticalDistance(sheetRenderer);
-            double horizontalDistance = sheetRenderer.BitmapColumnWidth;
-
-            int row = (int)Math.Ceiling(sheetRenderer.RenderFromY / verticalDistance);
-
-            double y = sheetRenderer.BitmapHeight - (row * verticalDistance - sheetRenderer.RenderFromY);
-
-            double halfColumn = sheetRenderer.BitmapColumnWidth / 2;
-            double startX = halfColumn;
-
-            double offset = row % 4 == 0 ?
-                sheetRenderer.Style.Note_1_1Percentage * halfColumn :
-                sheetRenderer.Style.Note_1_4Percentage * halfColumn;
-
-            Point start = new Point(startX - offset, y);
-            Point end = new Point(startX + offset, y);
-
-            while (start.Y >= 0)
+            if (row % 4 == 0)
             {
-                if (row % 4 == 0)
-                {
-                    context.DrawText(sheetRenderer.Style.BeatTextFormatProvider((row / 4).ToString()),
-                        new Point(20, start.Y));
-                }
-
-                var pen = row % 4 == 0 ? sheetRenderer.Style.NotePen1_1 : sheetRenderer.Style.NotePen1_4;
-
-                for (int i = 0; i < sheetRenderer.Sheet.Column; i++)
-                {
-                    context.DrawLine(pen, start, end);
-                    start.X += horizontalDistance;
-                    end.X += horizontalDistance;
-                }
-
-                row++;
-
-                offset = row % 4 == 0 ?
-                    sheetRenderer.Style.Note_1_1Percentage * halfColumn :
-                    sheetRenderer.Style.Note_1_4Percentage * halfColumn;
-                start.Y -= verticalDistance;
-                end.Y -= verticalDistance;
-                start.X = startX - offset;
-                end.X = startX + offset;
+                return halfColumn * style.FullNotePercentage;
+            }
+            return halfColumn * style.NotFullNotePercentage;
+        }
+        protected override Pen PickPen(int row, SheetRenderStyle style)
+        {
+            switch (Math.Abs(row % 4))
+            {
+                case 0:
+                    return style.NotePen1_1;
+                case 2:
+                    return style.NotePen1_4[1];
+                default:
+                    return style.NotePen1_4[0];
             }
         }
 
@@ -520,6 +585,86 @@ namespace WPFKB_Maker.TFS
 
                 var result = (
                     (int)Math.Round(absolute.Y / sheetRenderer.BitmapVerticalRenderDistance) * 24,
+                    (int)Math.Floor(absolute.X / sheetRenderer.BitmapColumnWidth)
+                    );
+                return result;
+            }
+        }
+    }
+
+    public class Strategy_1_3 : GridRenderStrategy
+    {
+        private InteractAgent agent = new Agent_1_3();
+        public override double GetVerticalDistance(SheetRenderer sheetRenderer) => sheetRenderer.BitmapHeight / (sheetRenderer.Zoom * 3);
+        protected override bool ShouldRenderText(int row) => row % 3 == 0;
+        protected override double PickOffset(int row, double halfColumn, SheetRenderStyle style)
+        {
+            if (row % 3 == 0)
+            {
+                return halfColumn * style.FullNotePercentage;
+            }
+            return halfColumn * style.NotFullNotePercentage;
+        }
+        protected override Pen PickPen(int row, SheetRenderStyle style)
+        {
+            if (row % 3 == 0)
+            {
+                return style.NotePen1_1;
+            }
+
+            return style.NotePen1_3[0];
+        }
+        public override InteractAgent Agent => agent;
+        private class Agent_1_3 : InteractAgent
+        {
+            public override (int, int)? GetPositionBitmap(SheetRenderer sheetRenderer, Point bitmapPosition)
+            {
+                var absolute = new Point(
+                    bitmapPosition.X,
+                    sheetRenderer.BitmapHeight - bitmapPosition.Y + sheetRenderer.RenderFromY);
+
+                var result = (
+                    (int)Math.Round(absolute.Y / sheetRenderer.BitmapVerticalRenderDistance) * 32,
+                    (int)Math.Floor(absolute.X / sheetRenderer.BitmapColumnWidth)
+                    );
+                return result;
+            }
+        }
+    }
+
+    public class Strategy_1_2 : GridRenderStrategy
+    {
+        private InteractAgent agent = new Agent_1_2();
+        public override double GetVerticalDistance(SheetRenderer sheetRenderer) => sheetRenderer.BitmapHeight / (sheetRenderer.Zoom * 2);
+        protected override bool ShouldRenderText(int row) => row % 2 == 0;
+        protected override double PickOffset(int row, double halfColumn, SheetRenderStyle style)
+        {
+            if (row % 2 == 0)
+            {
+                return halfColumn * style.FullNotePercentage;
+            }
+            return halfColumn * style.NotFullNotePercentage;
+        }
+        protected override Pen PickPen(int row, SheetRenderStyle style)
+        {
+            if (row % 2 == 0)
+            {
+                return style.NotePen1_1;
+            }
+
+            return style.NotePen1_2[0];
+        }
+        public override InteractAgent Agent => agent;
+        private class Agent_1_2 : InteractAgent
+        {
+            public override (int, int)? GetPositionBitmap(SheetRenderer sheetRenderer, Point bitmapPosition)
+            {
+                var absolute = new Point(
+                    bitmapPosition.X,
+                    sheetRenderer.BitmapHeight - bitmapPosition.Y + sheetRenderer.RenderFromY);
+
+                var result = (
+                    (int)Math.Round(absolute.Y / sheetRenderer.BitmapVerticalRenderDistance) * 48,
                     (int)Math.Floor(absolute.X / sheetRenderer.BitmapColumnWidth)
                     );
                 return result;
