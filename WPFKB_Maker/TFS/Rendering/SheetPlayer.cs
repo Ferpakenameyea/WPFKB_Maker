@@ -16,7 +16,7 @@ namespace WPFKB_Maker.TFS.Rendering
     public class SheetPlayer
     {
         private SheetRenderer Renderer { get; }
-        public double CurrentTimeSeconds => this.timer.Seconds;
+        public double CurrentTimeSecondsInPlay => this.timer.Seconds;
         public float Volume { get => device.Volume; set => device.Volume = value; }
         public bool Playing { get; private set; } = false;
         private WasapiOut device;
@@ -53,7 +53,7 @@ namespace WPFKB_Maker.TFS.Rendering
             {
                 return;
             }
-            var beat = this.CurrentTimeSeconds * this.Project.Meta.Bpm / 60;
+            var beat = this.CurrentTimeSecondsInPlay * this.Project.Meta.Bpm / 60;
 
             this.Renderer.TriggerAbsoluteY = beat * this.Renderer.BitmapHeightPerBeat;
             var triggerRow = this.Renderer.TriggerLineRow;

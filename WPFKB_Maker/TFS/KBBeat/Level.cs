@@ -42,6 +42,8 @@ namespace WPFKB_Maker.TFS.KBBeat
         public float Bpm { get; set; }
         [JsonProperty("ext")]
         public string Ext { get; set; }
+        [JsonProperty("length")]
+        public double LengthSeconds { get; set; }
         [JsonIgnore]
         public byte[] MusicFile { get; set; }
         [JsonIgnore]
@@ -59,9 +61,9 @@ namespace WPFKB_Maker.TFS.KBBeat
                 UnityVector3 noteAppearPosition,
                 float bpm,
                 byte[] musicFile,
-                WaveFormat waveFormat
-,
-                string ext)
+                WaveFormat waveFormat,
+                string ext,
+                double lengthSeconds)
         {
             this.AssetBundleName = assetBundleName;
             this.Name = name;
@@ -76,6 +78,7 @@ namespace WPFKB_Maker.TFS.KBBeat
             this.MusicFile = musicFile;
             this.WaveFormat = waveFormat;
             this.Ext = ext;
+            this.LengthSeconds = lengthSeconds;
         }
     }
     public class MetaBuilder
@@ -93,6 +96,13 @@ namespace WPFKB_Maker.TFS.KBBeat
         public float Bpm { get; private set; }
         public WaveFormat WaveFormat { get; private set; }
         public string Ext { get; private set; }
+        public double LengthSeconds { get; private set; }
+
+        public MetaBuilder SetLengthSeconds(double lengthSeconds)
+        {
+            LengthSeconds = lengthSeconds;
+            return this;
+        }
 
         public MetaBuilder SetAssetBundleName(string assetBundleName)
         {
@@ -214,7 +224,8 @@ namespace WPFKB_Maker.TFS.KBBeat
                 Bpm,
                 MusicFile,
                 WaveFormat,
-                Ext
+                Ext,
+                LengthSeconds
             );
         }
     }

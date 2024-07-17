@@ -28,11 +28,15 @@ namespace WPFKB_Maker
         public SheetRenderer SheetRenderer { get => SheetEditor?.Renderer; }
         public SheetPlayer SheetPlayer { get => SheetEditor?.Player; }
         public SheetEditor SheetEditor { get; private set; }
+        public ScrollingPreviwer ScrollingPreviewer { get; private set; }
+
         private DebugConsole debugConsole;
         
         private (int, int)? dragStart = null;
         private bool isInDraggingSelection = false;
         private bool isInDraggingMoving = false;
+
+        private bool isLinePreviewerInHold = false;
 
         private Point mouseDownPosition;
         private const double DragThresholdSquared = 100;
@@ -75,6 +79,14 @@ namespace WPFKB_Maker
                     dpiX, dpiY);
                 var player = new SheetPlayer(renderer);
                 this.SheetEditor = new SheetEditor(renderer, player);
+
+                this.ScrollingPreviewer = new ScrollingPreviwer(
+                    this.SheetEditor,
+                    this.scrollerImage,
+                    this.scrollerLineImage,
+                    (int)this.scrollerBorder.ActualWidth,
+                    (int)this.scrollerBorder.ActualHeight,
+                    dpiX, dpiY);
 
                 this.zoomSlider.Value = this.SheetRenderer.Zoom;
             };
@@ -577,5 +589,42 @@ namespace WPFKB_Maker
                 SheetEditor.ClearSheet();
             }
         }
+
+        private void ScrollerLineImageMouseDown(object sender, MouseButtonEventArgs e)
+        {
+            KeepLineTracking();
+            this.isLinePreviewerInHold = true;
+        }
+
+        private void ScrollerLineImageMouseMove(object sender, MouseEventArgs e)
+        {
+            if (this.isLinePreviewerInHold)
+            {
+                KeepLineTracking();
+            }
+        }
+
+        private void ScrollerLineImageMouseUp(object sender, MouseButtonEventArgs e)
+        {
+            this.isLinePreviewerInHold = false;
+        }
+        private void ScrollerLineImageMouseLeave(object sender, MouseEventArgs e)
+        {
+            this.isLinePreviewerInHold = false;
+        }
+
+        private void KeepLineTracking()
+        {
+            if (Project.Current == null)
+            {
+                return;
+            }
+            var pos = Mouse.GetPosition(this.scrollerLineImage);
+            double y = this.ScrollingPreviewer.LineBitmapHeight - pos.Y * (this.ScrollingPreviewer.LineBitmapHeight / this.ScrollingPreviewer.LineImageHeight);
+            double percentage = y / this.ScrollingPreviewer.LineBitmapHeight;
+            double time = Project.Current.Meta.LengthSeconds * percentage;
+            this.SheetRenderer.TriggerLineCurrentTimeSecond = time;
+        }
+
     }
 }

@@ -25,8 +25,8 @@ namespace WPFKB_Maker.TFS
         private double dpiX;
         private double dpiY;
 
-        private BeatRenderStrategy strategy;
-        public BeatRenderStrategy.InteractAgent Agent { get => strategy.Agent; }
+        private GridRenderStrategy strategy;
+        public GridRenderStrategy.InteractAgent Agent { get => strategy.Agent; }
         public double BitmapVerticalRenderDistance { get => strategy.GetVerticalDistance(this); }
         public double BitmapColumnWidth
         {
@@ -133,6 +133,30 @@ namespace WPFKB_Maker.TFS
         }
         public double RenderFromY { get; set; } = 0.0;
         public long RenderIntervalMilliseconds { get; private set; } = 0;
+        public double TriggerLineCurrentTimeSecond
+        {
+            get
+            {
+                if (Project.Current == null)
+                {
+                    return 0.0;
+                }
+
+                double beat = this.TriggerAbsoluteY / (this.BitmapVerticalHiddenRowDistance * 96);
+
+                return beat * (60 / Project.Current.Meta.Bpm);
+            }
+
+            set
+            {
+                if (Project.Current == null)
+                {
+                    return;
+                }
+
+                this.TriggerAbsoluteY = (value * BitmapVerticalHiddenRowDistance * 96 * Project.Current.Meta.Bpm) / 60;
+            }
+        }
         private readonly Stopwatch stopwatch = new Stopwatch();
         public List<Note> NotesToRender { get; set; } = new List<Note>();
         public SheetRenderStyle Style { get; set; } = new SheetRenderStyle()
@@ -145,8 +169,8 @@ namespace WPFKB_Maker.TFS
             NotePen1_1 = new Pen(Brushes.Purple, 2),
             NotePen1_4 = new Pen(Brushes.Blue, 2),
 
-            Note_1_1Offset = 40,
-            Note_1_4Offset = 30,
+            Note_1_1Percentage = 1,
+            Note_1_4Percentage = 0.8,
 
             BeatTextFormatProvider = (content) => new FormattedText(
                 content, CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
@@ -196,8 +220,6 @@ namespace WPFKB_Maker.TFS
             {
                 return;
             }
-            var watch = new Stopwatch();
-            watch.Start();
 
             var renderFromRow = this.RenderFromRow;
             var renderToRow = this.RenderToRow;
@@ -206,6 +228,7 @@ namespace WPFKB_Maker.TFS
                 var query = from note in this.Sheet.Values.AsParallel()
                             where
                                 ShouldRenderNote(note, renderFromRow, renderToRow)
+                            orderby (note.BasePosition.Item1 + note.BasePosition.Item2)
                             select note;
                 lock (this.NotesToRender)
                 {
@@ -231,10 +254,10 @@ namespace WPFKB_Maker.TFS
             this.bitmap.Clear();
             this.bitmap.Render(this.drawingVisual);
             
-            watch.Stop();
             stopwatch.Restart();
             renderMutex.Release();
         }
+
         private bool ShouldRenderNote(Note note, int start, int end)
         {
             if (note is HitNote)
@@ -321,13 +344,8 @@ namespace WPFKB_Maker.TFS
 
             if (note is HitNote)
             {
-                context.DrawRectangle(
-                    brush,
-                    pen,
-                    Style.NoteProvider(this.NotePositionToBitmapPoint(
-                        (note as HitNote).BasePosition
-                        ))
-                    );
+                var rect = Style.NoteProvider(this.NotePositionToBitmapPoint((note as HitNote).BasePosition));
+                context.DrawRectangle(brush, pen, rect);
                 return;
             }
             if (note is HoldNote)
@@ -364,8 +382,8 @@ namespace WPFKB_Maker.TFS
         public Pen TriggerLinePen { get; set; }
         public Pen NotePen1_1 { get; set; }
         public Pen NotePen1_4 { get; set; }
-        public double Note_1_1Offset { get; set; }
-        public double Note_1_4Offset { get; set; }
+        public double Note_1_1Percentage { get; set; }
+        public double Note_1_4Percentage { get; set; }
         public Func<string, FormattedText> BeatTextFormatProvider { get; set; }
         public Func<Point, Rect> SelectorProvider { get; set; }
         public Brush SelectorBrush { get; set; }
@@ -377,7 +395,34 @@ namespace WPFKB_Maker.TFS
         public Pen SelectedNotePen { get; set; }
     }
 
-    public abstract class BeatRenderStrategy
+
+    public static class RenderStrategyFactory
+    {
+        public static GridRenderStrategy Get(RenderStrategyType type)
+        {
+            switch (type)
+            {
+                case RenderStrategyType.R1_4:
+                    return new Strategy_1_4();
+                default:
+                    throw new NotSupportedException();
+            };
+        }
+    }
+
+    public enum RenderStrategyType
+    {
+        R1_2,
+        R1_3,
+        R1_4,
+        R1_6,
+        R1_8,
+        R1_12,
+        R1_16,
+        R1_24,
+        R1_32,
+    }
+    public abstract class GridRenderStrategy
     {
         public abstract void Render(SheetRenderer sheetRenderer, DrawingContext context);
         public abstract double GetVerticalDistance(SheetRenderer sheetRenderer);
@@ -412,38 +457,10 @@ namespace WPFKB_Maker.TFS
         }
     }
 
-    public static class RenderStrategyFactory
-    {
-        public static BeatRenderStrategy Get(RenderStrategyType type)
-        {
-            switch (type)
-            {
-                case RenderStrategyType.R1_4:
-                    return new Strategy_1_4();
-                default:
-                    throw new NotSupportedException();
-            };
-        }
-    }
-
-    public enum RenderStrategyType
-    {
-        R1_2,
-        R1_3,
-        R1_4,
-        R1_6,
-        R1_8,
-        R1_12,
-        R1_16,
-        R1_24,
-        R1_32,
-    }
-
-    public class Strategy_1_4 : BeatRenderStrategy
+    public class Strategy_1_4 : GridRenderStrategy
     {
         private InteractAgent agent = new Agent_1_4();
         public override double GetVerticalDistance(SheetRenderer sheetRenderer) => sheetRenderer.BitmapHeight / (sheetRenderer.Zoom * 4);
-
         public override void Render(SheetRenderer sheetRenderer, DrawingContext context)
         {
             double verticalDistance = GetVerticalDistance(sheetRenderer);
@@ -452,9 +469,13 @@ namespace WPFKB_Maker.TFS
             int row = (int)Math.Ceiling(sheetRenderer.RenderFromY / verticalDistance);
 
             double y = sheetRenderer.BitmapHeight - (row * verticalDistance - sheetRenderer.RenderFromY);
-            double startX = sheetRenderer.BitmapColumnWidth / 2;
 
-            double offset = row % 4 == 0 ? sheetRenderer.Style.Note_1_1Offset : sheetRenderer.Style.Note_1_4Offset;
+            double halfColumn = sheetRenderer.BitmapColumnWidth / 2;
+            double startX = halfColumn;
+
+            double offset = row % 4 == 0 ?
+                sheetRenderer.Style.Note_1_1Percentage * halfColumn :
+                sheetRenderer.Style.Note_1_4Percentage * halfColumn;
 
             Point start = new Point(startX - offset, y);
             Point end = new Point(startX + offset, y);
@@ -478,7 +499,9 @@ namespace WPFKB_Maker.TFS
 
                 row++;
 
-                offset = row % 4 == 0 ? sheetRenderer.Style.Note_1_1Offset : sheetRenderer.Style.Note_1_4Offset;
+                offset = row % 4 == 0 ?
+                    sheetRenderer.Style.Note_1_1Percentage * halfColumn :
+                    sheetRenderer.Style.Note_1_4Percentage * halfColumn;
                 start.Y -= verticalDistance;
                 end.Y -= verticalDistance;
                 start.X = startX - offset;
@@ -501,6 +524,23 @@ namespace WPFKB_Maker.TFS
                     );
                 return result;
             }
+        }
+    }
+
+    public static class RectExtension
+    {
+        public static Rect Shrink(this Rect rect, double xShrinkRate, double yShrinkRate)
+        {
+            double xoff = rect.Width / 2 * xShrinkRate;
+            double yoff = rect.Height / 2 * yShrinkRate;
+
+            double cx = rect.Top + rect.Bottom / 2;
+            double cy = rect.Left + rect.Right / 2;
+
+            return new Rect(
+                new Point(cx - xoff, cy - yoff),
+                new Point(cx + xoff, cy + yoff)
+                );
         }
     }
 }

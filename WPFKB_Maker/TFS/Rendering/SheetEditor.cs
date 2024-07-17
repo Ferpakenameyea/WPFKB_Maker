@@ -1,5 +1,8 @@
-﻿using System;
+﻿using NAudio.Gui;
+using NAudio.Midi;
+using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows;
 using WPFKB_Maker.Editing;
@@ -12,11 +15,16 @@ namespace WPFKB_Maker.TFS.Rendering
         public SheetRenderer Renderer { get; }
         public SheetPlayer Player { get; }
         public Sheet Sheet { get => Renderer.Sheet; }
+        public delegate void SheetChangeEventHandler(object sender, SheetChangeEventArgs e);
+        public event SheetChangeEventHandler OnSheetPut;
+        public event SheetChangeEventHandler OnSheetDelete;
+        public event Action OnSheetClear;
+
         public Project Project { get => Renderer.Project; set => Renderer.Project = value; }
         public (int, int)? Selector { get => Renderer.Selector; }
         public (int, int)? HoldStart { get; set; } = null;
         public ICollection<Note> SelectedNotes { get; } = new HashSet<Note>();
-        
+
         private List<(int, int)> removingPositions = new List<(int, int)>();
         private List<Note> clipBoard = null;
         private bool IsClipBoardSourceFromCut { get; set; } = false;
@@ -33,26 +41,43 @@ namespace WPFKB_Maker.TFS.Rendering
             this.Renderer.SelectedNotesProvider = () => Array.Empty<Note>();
         }
         public Note GetNote(int row, int column) => this.Sheet?.GetNote(row, column);
-        public bool PutNote(int row, int column, Note note) => this.Sheet?.PutNote(row, column, note) ?? false;
-        public bool DeleteNote(int row, int column) => this.Sheet?.DeleteNote(row, column) ?? false;
         public bool HasSheet() => this.Sheet != null;
         public (int, int)? ScreenToSheetPosition(Point screenPoint) => this.Renderer.Agent.GetPositionScreen(this.Renderer, screenPoint);
         public void RemoveNote((int, int) selector)
         {
-            var query = from note in this.Renderer.NotesToRender
-                        where IsSelectedNote(note, selector)
-                        orderby SelectNotePriority(note)
-                        select note;
+            var query = from n in this.Renderer.NotesToRender
+                        where IsSelectedNote(n, selector)
+                        orderby SelectNotePriority(n)
+                        select n;
 
             if (!query.Any())
             {
                 return;
             }
 
-            var position = query.First().BasePosition;
+            Note note = query.First();
+            var position = note.BasePosition;
+            bool res = false;
             lock (this.Renderer.Sheet)
             {
-                this.Renderer.Sheet.DeleteNote(position.Item1, position.Item2);
+                res = this.Renderer.Sheet.DeleteNote(position.Item1, position.Item2);
+            }
+
+            if (res)
+            {
+                this.OnSheetDelete?.Invoke(this, 
+                    new SheetChangeEventArgs(false, selector));
+                UndoRedo.PushCommand(
+                    () =>
+                    {
+                        this.Renderer.Sheet.PutNote(position.Item1, position.Item2, note);
+                        this.OnSheetDelete?.Invoke(this, new SheetChangeEventArgs(true, selector));
+                    },
+                    () =>
+                    {
+                        this.Renderer.Sheet.DeleteNote(position.Item1, position.Item2);
+                        this.OnSheetDelete?.Invoke(this, new SheetChangeEventArgs(false, selector));
+                    });
             }
         }
         public void PutHoldNote((int, int) selector)
@@ -76,35 +101,66 @@ namespace WPFKB_Maker.TFS.Rendering
             }
 
             Note note = new HoldNote((HoldStart.Value, selector));
+            bool res = false;
             lock (this.Sheet)
             {
-                this.Sheet.PutNote(
+                res = this.Sheet.PutNote(
                     HoldStart.Value.Item1,
                     HoldStart.Value.Item2,
                     note);
             }
+            if (res)
+            {
+                this.OnSheetPut?.Invoke(this,
+                    new SheetChangeEventArgs(true, HoldStart.Value));
+            }
+
             int row = HoldStart.Value.Item1;
             int col = HoldStart.Value.Item2;
             HoldStart = null;
             UndoRedo.PushCommand(
-                () => this.Sheet.DeleteNote(row, col),
-                () => this.Sheet.PutNote(row, col, note));
+                () =>
+                {
+                    this.Sheet.DeleteNote(row, col);
+                    this.OnSheetDelete?.Invoke(this, new SheetChangeEventArgs(false, (row, col)));
+                },
+                () =>
+                {
+                    this.Sheet.PutNote(row, col, note);
+                    this.OnSheetDelete?.Invoke(this, new SheetChangeEventArgs(true, (row, col)));
+                }
+            );
         }
         public void PutHitNode((int, int) selector)
         {
             var note = new HitNote(selector);
+            bool res = false;
             lock (this.Sheet)
             {
-                this.Sheet.PutNote(
+                res = this.Sheet.PutNote(
                     selector.Item1,
                     selector.Item2,
                     note);
             }
+            if (res)
+            {
+                this.OnSheetPut?.Invoke(this,
+                    new SheetChangeEventArgs(true, selector));
+            }
+
             int row = selector.Item1;
             int col = selector.Item2;
             UndoRedo.PushCommand(
-                () => this.Sheet.DeleteNote(row, col),
-                () => this.Sheet.PutNote(row, col, note));
+                () => 
+                { 
+                    this.Sheet.DeleteNote(row, col); 
+                    this.OnSheetDelete?.Invoke(this, new SheetChangeEventArgs(false, (row, col)));
+                },
+                () => 
+                { 
+                    this.Sheet.PutNote(row, col, note);
+                    this.OnSheetDelete?.Invoke(this, new SheetChangeEventArgs(true, (row, col)));
+                });
         }
         private bool IsSelectedNote(Note note, (int, int) selector)
         {
@@ -204,6 +260,10 @@ namespace WPFKB_Maker.TFS.Rendering
             var remov = this.removingPositions.ToArray();
             var targets = this.SelectedNotes.ToArray();
 
+            this.OnSheetDelete?.Invoke(this, new SheetChangeEventArgs(false, remov));
+            this.OnSheetPut?.Invoke(this, new SheetChangeEventArgs(true, add));
+
+
             Debug.console.Write("Moving flushed");
             
             UndoRedo.PushCommand(
@@ -222,6 +282,8 @@ namespace WPFKB_Maker.TFS.Rendering
                             targets[i]
                             );
                     }
+                    this.OnSheetPut?.Invoke(this, new SheetChangeEventArgs(true, remov));
+                    this.OnSheetDelete?.Invoke(this, new SheetChangeEventArgs(false, add));
                 },
                 () => 
                 {
@@ -234,6 +296,9 @@ namespace WPFKB_Maker.TFS.Rendering
                     {
                         this.Sheet.PutNote(add[i].Item1, add[i].Item2, targets[i]);
                     }
+
+                    this.OnSheetDelete?.Invoke(this, new SheetChangeEventArgs(false, remov));
+                    this.OnSheetPut?.Invoke(this, new SheetChangeEventArgs(true, add));
                 }
             );
             
@@ -246,6 +311,9 @@ namespace WPFKB_Maker.TFS.Rendering
             this.removingPositions.Clear();
 
             var collection = this.Sheet.Values.ToArray();
+
+            this.OnSheetClear?.Invoke();
+
             this.Sheet.Clear();
             UndoRedo.PushCommand(
                 () =>
@@ -254,12 +322,14 @@ namespace WPFKB_Maker.TFS.Rendering
                     {
                         Sheet.PutNote(note.BasePosition.Item1, note.BasePosition.Item2, note);
                     }
+                    this.OnSheetPut?.Invoke(this, new SheetChangeEventArgs(true, collection.Select(n => n.BasePosition)));
                 },
                 () =>
                 {
                     this.SelectedNotes.Clear();
                     this.removingPositions.Clear();
                     this.Sheet.Clear();
+                    this.OnSheetClear?.Invoke();
                 });
 
         }
@@ -272,6 +342,8 @@ namespace WPFKB_Maker.TFS.Rendering
                 this.Sheet.DeleteNote(note.BasePosition.Item1, note.BasePosition.Item2);
             }
 
+            this.OnSheetDelete?.Invoke(this, new SheetChangeEventArgs(false, after));
+
             UndoRedo.PushCommand(
                 () =>
                 {
@@ -279,6 +351,7 @@ namespace WPFKB_Maker.TFS.Rendering
                     {
                         this.Sheet.PutNote(after[i].Item1, after[i].Item2, targets[i]);
                     }
+                    this.OnSheetPut?.Invoke(this, new SheetChangeEventArgs(true, after));
                 },
                 () =>
                 {
@@ -286,6 +359,7 @@ namespace WPFKB_Maker.TFS.Rendering
                     {
                         this.Sheet.DeleteNote(note.BasePosition.Item1, note.BasePosition.Item2);
                     }
+                    this.OnSheetDelete?.Invoke(this, new SheetChangeEventArgs(false, after));
                 });
 
             this.SelectedNotes.Clear();
@@ -334,6 +408,8 @@ namespace WPFKB_Maker.TFS.Rendering
                 Sheet.PutNote(clone.BasePosition.Item1, clone.BasePosition.Item2, clone);
             });
 
+            this.OnSheetPut?.Invoke(this, new SheetChangeEventArgs(true, cloned.Select(n => n.BasePosition)));
+
             UndoRedo.PushCommand(
                 () =>
                 {
@@ -341,6 +417,7 @@ namespace WPFKB_Maker.TFS.Rendering
                     {
                         Sheet.DeleteNote(cl.BasePosition.Item1, cl.BasePosition.Item2);
                     }
+                    this.OnSheetDelete?.Invoke(this, new SheetChangeEventArgs(false, cloned.Select(n => n.BasePosition)));
                 },
                 () =>
                 {
@@ -348,6 +425,7 @@ namespace WPFKB_Maker.TFS.Rendering
                     {
                         Sheet.PutNote(cl.BasePosition.Item1, cl.BasePosition.Item2, cl);
                     }
+                    this.OnSheetPut?.Invoke(this, new SheetChangeEventArgs(true, cloned.Select(n => n.BasePosition)));
                 });
             if (IsClipBoardSourceFromCut)
             {
@@ -365,6 +443,9 @@ namespace WPFKB_Maker.TFS.Rendering
             {
                 this.Sheet.DeleteNote(n.BasePosition.Item1, n.BasePosition.Item2);
             }
+
+            this.OnSheetDelete?.Invoke(this, new SheetChangeEventArgs(false, after));
+
             this.IsClipBoardSourceFromCut = true;
             UndoRedo.PushCommand(
                 () =>
@@ -373,6 +454,7 @@ namespace WPFKB_Maker.TFS.Rendering
                     {
                         this.Sheet.PutNote(after[i].Item1, after[i].Item2, targets[i]);
                     }
+                    this.OnSheetPut?.Invoke(this, new SheetChangeEventArgs(true, after));
                 },
                 () =>
                 {
@@ -380,9 +462,9 @@ namespace WPFKB_Maker.TFS.Rendering
                     {
                         this.Sheet.DeleteNote(n.BasePosition.Item1, n.BasePosition.Item2);
                     }
+                    this.OnSheetDelete?.Invoke(this, new SheetChangeEventArgs(false, after));
                 });
         }
-
         private void FlushSelectionNoCleaning(out (int, int)[] _before, out (int, int)[] _after, out Note[] _targets)
         {
             if (this.SelectedNotes.Count == 0)
@@ -409,6 +491,9 @@ namespace WPFKB_Maker.TFS.Rendering
             var before = this.removingPositions.ToArray();
             var targets = this.SelectedNotes.ToArray();
 
+            this.OnSheetDelete?.Invoke(this, new SheetChangeEventArgs(false, before));
+            this.OnSheetPut?.Invoke(this, new SheetChangeEventArgs(true, after));
+
             UndoRedo.PushCommand(
                 () =>
                 {
@@ -425,6 +510,9 @@ namespace WPFKB_Maker.TFS.Rendering
                             targets[i]
                             );
                     }
+
+                    this.OnSheetDelete?.Invoke(this, new SheetChangeEventArgs(false, after));
+                    this.OnSheetPut?.Invoke(this, new SheetChangeEventArgs(true, before));
                 },
                 () =>
                 {
@@ -437,6 +525,9 @@ namespace WPFKB_Maker.TFS.Rendering
                     {
                         this.Sheet.PutNote(after[i].Item1, after[i].Item2, targets[i]);
                     }
+
+                    this.OnSheetDelete?.Invoke(this, new SheetChangeEventArgs(false, before));
+                    this.OnSheetPut?.Invoke(this, new SheetChangeEventArgs(true, after));
                 }
             );
 
@@ -444,5 +535,24 @@ namespace WPFKB_Maker.TFS.Rendering
             _before = before;
             _targets = targets;
         }
+    }
+    public class SheetChangeEventArgs : EventArgs
+    {
+        public SheetChangeEventArgs(bool add, params (int, int)[] target)
+        {
+            Add = add;
+            Target = target;
+        }
+
+        public SheetChangeEventArgs(bool add, IEnumerable<(int, int)> target)
+        {
+            Add = add;
+            Target = target;
+        }
+
+        public bool Add { get; set; }
+        public IEnumerable<(int, int)> Target { get; set; }
+
+
     }
 }

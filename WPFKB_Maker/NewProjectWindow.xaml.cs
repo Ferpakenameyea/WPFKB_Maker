@@ -201,6 +201,8 @@ namespace WPFKB_Maker
                 WaveFormat waveFormat = null;
                 string extensionName = new FileInfo(this.SelectedFilePath).Extension;
                 button.Content = "正在读取音乐文件……";
+                double len = 0;
+                
                 await Task.Run(() =>
                 {
                     data = File.ReadAllBytes(this.SelectedFilePath);
@@ -209,6 +211,7 @@ namespace WPFKB_Maker
                         using (var reader = KBMakerWaveStream.GetWaveStream(this.SelectedFilePath))
                         {
                             waveFormat = reader.WaveFormat;
+                            len = reader.TotalTime.TotalSeconds;   
                         }
                     }
                 }).ConfigureAwait(true);
@@ -235,6 +238,7 @@ namespace WPFKB_Maker
                     .SetMusicFile(data)
                     .SetWaveFormat(waveFormat)
                     .SetExtensionName(extensionName)
+                    .SetLengthSeconds(len)
                     .Build();
 
                 Project.Current = new Project(meta, new HashSheet(

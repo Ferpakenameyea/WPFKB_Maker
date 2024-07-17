@@ -162,6 +162,7 @@
     <Compile Include="TFS\KBBeat\Sheet.cs" />
     <Compile Include="TFS\KBBeat\TupleExtensions.cs" />
     <Compile Include="TFS\KBBeat\Unity\UnityVector3.cs" />
+    <Compile Include="TFS\Rendering\ScrollingPreviwer.cs" />
     <Compile Include="TFS\Rendering\SheetEditor.cs" />
     <Compile Include="TFS\Rendering\SheetPlayer.cs" />
     <Compile Include="TFS\Rendering\SheetRenderer.cs" />
