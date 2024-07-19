@@ -1,4 +1,5 @@
-﻿using Microsoft.Win32;
+﻿using MethodTimer;
+using Microsoft.Win32;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -258,6 +259,7 @@ namespace WPFKB_Maker
                 this.SheetEditor.SelectNotesByDragging(start.Value, end.Value);
             }
         }
+
         private void CanvasMouseMove(object sender, MouseEventArgs e)
         {
             if (e.LeftButton != MouseButtonState.Pressed)

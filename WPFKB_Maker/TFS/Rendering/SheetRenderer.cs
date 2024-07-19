@@ -15,6 +15,7 @@ using Pen = System.Drawing.Pen;
 using WPFKB_Maker.TFS.KBBeat;
 using System.Windows.Threading;
 using WPFKB_Maker.TFS.Rendering;
+using MethodTimer;
 
 namespace WPFKB_Maker.TFS
 {
@@ -166,13 +167,16 @@ namespace WPFKB_Maker.TFS
 
             this.RenderType = RenderStrategyType.R1_4;
 
-            var timer = new DispatcherTimer()
-            {
-                Interval = TimeSpan.FromMilliseconds((1000.0 / fps))
-            };
-            timer.Tick += OnRender;
-            timer.Start();
+            CompositionTarget.Rendering += OnRender;
+
+            //var timer = new DispatcherTimer()
+            //{
+            //    Interval = TimeSpan.FromMilliseconds((1000.0 / fps))
+            //};
+            //timer.Tick += OnRender;
+            //timer.Start();
         }
+
         private async void OnRender(object sender, EventArgs e)
         {
             graphics.Clear(Style.BackgroundColor);
