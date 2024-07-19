@@ -160,58 +160,73 @@ namespace WPFKB_Maker.TFS
         public List<Note> NotesToRender { get; set; } = new List<Note>();
         public SheetRenderStyle Style { get; set; } = new SheetRenderStyle()
         {
-            BackgroundBrush = Brushes.LightGray,
-            SeperatorPen = new Pen(Brushes.Cyan, 1),
-            BorderPen = new Pen(Brushes.Red, 1),
-            TriggerLinePen = new Pen(Brushes.Lime, 2),
+            BackgroundBrush = new SolidColorBrush(Color.FromRgb(5, 6, 2)),
+            SeperatorPen = new Pen(new SolidColorBrush(Color.FromRgb(50, 51, 59)), 1),
+            BorderPen = new Pen(new SolidColorBrush(Color.FromRgb(80, 81, 89)), 2),
+            TriggerLinePen = new Pen(new SolidColorBrush(Color.FromRgb(255, 46, 65)), 2),
 
-            NotePen1_1 = new Pen(Brushes.Purple, 2),
+            NotePen1_1 = new Pen(new SolidColorBrush(Color.FromRgb(90, 91, 99)), 2),
             NotePen1_2 = new Pen[]
             {
-                new Pen(Brushes.DarkCyan, 2)
+                new Pen(new SolidColorBrush(Color.FromRgb(50, 80, 50)), 2)
             },
             NotePen1_3 = new Pen[]
             {
-                new Pen(Brushes.SpringGreen, 2)
+                new Pen(new SolidColorBrush(Color.FromRgb(30, 60, 30)), 2)
             },
             NotePen1_4 = new Pen[]
             {
-                new Pen(Brushes.Blue, 2),
-                new Pen(Brushes.Green, 2)
+                new Pen(new SolidColorBrush(Color.FromRgb(65, 38, 69)), 2),
+                new Pen(new SolidColorBrush(Color.FromRgb(21, 52, 58)), 2)
             },
             NotePen1_6 = new Pen[]
             {
-
+                new Pen(new SolidColorBrush(Color.FromRgb(20, 80, 20)), 2),
+                new Pen(new SolidColorBrush(Color.FromRgb(20, 60, 80)), 2)
             },
             NotePen1_8 = new Pen[]
             {
-
+                new Pen(new SolidColorBrush(Color.FromRgb(85, 58, 89)), 2),
+                new Pen(new SolidColorBrush(Color.FromRgb(41, 72, 78)), 2),
+                new Pen(new SolidColorBrush(Color.FromRgb(30, 30, 30)), 2)
             },
             NotePen1_12 = new Pen[]
             {
-
+                new Pen(new SolidColorBrush(Color.FromRgb(85, 58, 89)), 2),
+                new Pen(new SolidColorBrush(Color.FromRgb(41, 72, 78)), 2),
+                new Pen(new SolidColorBrush(Color.FromRgb(30, 30, 30)), 2)
+            },
+            NotePen1_16 = new Pen[]
+            {
+                new Pen(new SolidColorBrush(Color.FromRgb(85, 58, 89)), 2),
+                new Pen(new SolidColorBrush(Color.FromRgb(41, 72, 78)), 2),
+                new Pen(new SolidColorBrush(Color.FromRgb(30, 30, 30)), 2)
             },
             NotePen1_24 = new Pen[]
             {
-
+                new Pen(new SolidColorBrush(Color.FromRgb(85, 58, 89)), 2),
+                new Pen(new SolidColorBrush(Color.FromRgb(41, 72, 78)), 2),
+                new Pen(new SolidColorBrush(Color.FromRgb(30, 30, 30)), 2)
             },
             NotePen1_32 = new Pen[]
             {
-
+                new Pen(new SolidColorBrush(Color.FromRgb(85, 58, 89)), 2),
+                new Pen(new SolidColorBrush(Color.FromRgb(41, 72, 78)), 2),
+                new Pen(new SolidColorBrush(Color.FromRgb(30, 30, 30)), 2)
             },
             FullNotePercentage = 1,
             NotFullNotePercentage = 0.8,
 
             BeatTextFormatProvider = (content) => new FormattedText(
                 content, CultureInfo.CurrentCulture, System.Windows.FlowDirection.LeftToRight,
-                new Typeface("Consolas"), 30, Brushes.Black, 1),
+                new Typeface("Consolas"), 30, Brushes.White, 1),
 
             SelectorBrush = new SolidColorBrush(new Color()
             {
-                R = 0,
-                G = 255,
-                B = 150,
-                A = 100
+                R = 179,
+                G = 234,
+                B = 255,
+                A = 90
             }),
 
             SelectorPen = null,
@@ -220,14 +235,15 @@ namespace WPFKB_Maker.TFS
                     new Point(center.X + 40, center.Y + 10)),
 
             NoteBrush = Brushes.White,
-            NotePen = new Pen(Brushes.Cyan, 4),
+            NotePen = new Pen(new SolidColorBrush(Color.FromRgb(208, 221, 234)), 4),
             NoteProvider = (center) => new Rect(
                     new Point(center.X - 40, center.Y - 10),
                     new Point(center.X + 40, center.Y + 10)),
 
-            SelectedNoteBrush = Brushes.White,
-            SelectedNotePen = new Pen(Brushes.Red, 4),
+            SelectedNoteBrush = new SolidColorBrush(Color.FromRgb(255, 255, 102)),
+            SelectedNotePen = new Pen(new SolidColorBrush(Color.FromRgb(229, 232, 107)), 4),
         };
+        private readonly Stopwatch performanceWatcher = new Stopwatch();
         public SheetRenderer(Image image, int initialWidth, int initialHeight, double dpiX, double dpiY, int? fpsLimit = null)
         {
             this.Image = image;
@@ -244,6 +260,8 @@ namespace WPFKB_Maker.TFS
         }
         private async void OnRender(object sender, EventArgs e)
         {
+            performanceWatcher.Restart();
+
             await renderMutex.WaitAsync();
             this.NotesToRender.Clear();
             if (stopwatch.ElapsedMilliseconds < this.RenderIntervalMilliseconds)
@@ -275,9 +293,9 @@ namespace WPFKB_Maker.TFS
                 {
                     this.DrawSheet(context, this.Sheet);
                     this.DrawTriggerLine(context);
-                    this.DrawSelector(context);
-                    await task.ConfigureAwait(true);
+                    await task;
                     this.DrawNotes(context);
+                    this.DrawSelector(context);
                 }
             }
 
@@ -286,6 +304,9 @@ namespace WPFKB_Maker.TFS
             
             stopwatch.Restart();
             renderMutex.Release();
+
+            performanceWatcher.Stop();
+            Debug.console.Write($"Rendering elapsed {performanceWatcher.ElapsedMilliseconds} ms");
         }
 
         private bool ShouldRenderNote(Note note, int start, int end)
@@ -417,6 +438,7 @@ namespace WPFKB_Maker.TFS
         public Pen[] NotePen1_6 { get; set; }
         public Pen[] NotePen1_8 { get; set; }
         public Pen[] NotePen1_12 { get; set; }
+        public Pen[] NotePen1_16 { get; set; }
         public Pen[] NotePen1_24 { get; set; }
         public Pen[] NotePen1_32 { get; set; }
 
@@ -446,6 +468,18 @@ namespace WPFKB_Maker.TFS
                     return new Strategy_1_3();
                 case RenderStrategyType.R1_4:
                     return new Strategy_1_4();
+                case RenderStrategyType.R1_6:
+                    return new Strategy_1_6();
+                case RenderStrategyType.R1_8:
+                    return new Strategy_1_8();
+                case RenderStrategyType.R1_12:
+                    return new Strategy_1_12();
+                case RenderStrategyType.R1_16:
+                    return new Strategy_1_16();
+                case RenderStrategyType.R1_24:
+                    return new Strategy_1_24();
+                case RenderStrategyType.R1_32:
+                    return new Strategy_1_32();
                 default:
                     throw new NotSupportedException();
             };
@@ -672,6 +706,278 @@ namespace WPFKB_Maker.TFS
         }
     }
 
+    public class Strategy_1_6 : GridRenderStrategy
+    {
+        private InteractAgent agent = new Agent_1_6();
+        public override double GetVerticalDistance(SheetRenderer sheetRenderer) => sheetRenderer.BitmapHeight / (sheetRenderer.Zoom * 6);
+        protected override bool ShouldRenderText(int row) => row % 6 == 0;
+        protected override double PickOffset(int row, double halfColumn, SheetRenderStyle style)
+        {
+            if (row % 6 == 0)
+            {
+                return halfColumn * style.FullNotePercentage;
+            }
+            return halfColumn * style.NotFullNotePercentage;
+        }
+        protected override Pen PickPen(int row, SheetRenderStyle style)
+        {
+            switch (Math.Abs(row % 6))
+            {
+                case 0:
+                    return style.NotePen1_1;
+                case 3:
+                    return style.NotePen1_6[1];
+                default:
+                    return style.NotePen1_6[0];
+            }
+        }
+        public override InteractAgent Agent => agent;
+        private class Agent_1_6 : InteractAgent
+        {
+            public override (int, int)? GetPositionBitmap(SheetRenderer sheetRenderer, Point bitmapPosition)
+            {
+                var absolute = new Point(
+                    bitmapPosition.X,
+                    sheetRenderer.BitmapHeight - bitmapPosition.Y + sheetRenderer.RenderFromY);
+
+                var result = (
+                    (int)Math.Round(absolute.Y / sheetRenderer.BitmapVerticalRenderDistance) * 16,
+                    (int)Math.Floor(absolute.X / sheetRenderer.BitmapColumnWidth)
+                    );
+                return result;
+            }
+        }
+    }
+
+    public class Strategy_1_8 : GridRenderStrategy
+    {
+        private InteractAgent agent = new Agent_1_8();
+        public override double GetVerticalDistance(SheetRenderer sheetRenderer) => sheetRenderer.BitmapHeight / (sheetRenderer.Zoom * 8);
+        protected override bool ShouldRenderText(int row) => row % 8 == 0;
+        protected override double PickOffset(int row, double halfColumn, SheetRenderStyle style)
+        {
+            if (row % 8 == 0)
+            {
+                return halfColumn * style.FullNotePercentage;
+            }
+            return halfColumn * style.NotFullNotePercentage;
+        }
+        protected override Pen PickPen(int row, SheetRenderStyle style)
+        {
+            switch (Math.Abs(row % 8))
+            {
+                case 2:
+                case 6:
+                    return style.NotePen1_8[0];
+                case 4:
+                    return style.NotePen1_8[1];
+                case 0:
+                    return style.NotePen1_1;
+                default:
+                    return style.NotePen1_8[2];
+            }
+        }
+        public override InteractAgent Agent => agent;
+        private class Agent_1_8 : InteractAgent
+        {
+            public override (int, int)? GetPositionBitmap(SheetRenderer sheetRenderer, Point bitmapPosition)
+            {
+                var absolute = new Point(
+                    bitmapPosition.X,
+                    sheetRenderer.BitmapHeight - bitmapPosition.Y + sheetRenderer.RenderFromY);
+
+                var result = (
+                    (int)Math.Round(absolute.Y / sheetRenderer.BitmapVerticalRenderDistance) * 12,
+                    (int)Math.Floor(absolute.X / sheetRenderer.BitmapColumnWidth)
+                    );
+                return result;
+            }
+        }
+    }
+
+    public class Strategy_1_12 : GridRenderStrategy
+    {
+        private InteractAgent agent = new Agent_1_12();
+        public override double GetVerticalDistance(SheetRenderer sheetRenderer) => sheetRenderer.BitmapHeight / (sheetRenderer.Zoom * 12);
+        protected override bool ShouldRenderText(int row) => row % 12 == 0;
+        protected override double PickOffset(int row, double halfColumn, SheetRenderStyle style)
+        {
+            if (row % 12 == 0)
+            {
+                return halfColumn * style.FullNotePercentage;
+            }
+            return halfColumn * style.NotFullNotePercentage;
+        }
+        protected override Pen PickPen(int row, SheetRenderStyle style)
+        {
+            switch (Math.Abs(row % 12))
+            {
+                case 3:
+                case 9:
+                    return style.NotePen1_12[0];
+                case 6:
+                    return style.NotePen1_12[1];
+                case 0:
+                    return style.NotePen1_1;
+                default:
+                    return style.NotePen1_12[2];
+            }
+        }
+        public override InteractAgent Agent => agent;
+        private class Agent_1_12 : InteractAgent
+        {
+            public override (int, int)? GetPositionBitmap(SheetRenderer sheetRenderer, Point bitmapPosition)
+            {
+                var absolute = new Point(
+                    bitmapPosition.X,
+                    sheetRenderer.BitmapHeight - bitmapPosition.Y + sheetRenderer.RenderFromY);
+
+                var result = (
+                    (int)Math.Round(absolute.Y / sheetRenderer.BitmapVerticalRenderDistance) * 8,
+                    (int)Math.Floor(absolute.X / sheetRenderer.BitmapColumnWidth)
+                    );
+                return result;
+            }
+        }
+    }
+
+    public class Strategy_1_16 : GridRenderStrategy
+    {
+        private InteractAgent agent = new Agent_1_16();
+        public override double GetVerticalDistance(SheetRenderer sheetRenderer) => sheetRenderer.BitmapHeight / (sheetRenderer.Zoom * 16);
+        protected override bool ShouldRenderText(int row) => row % 16 == 0;
+        protected override double PickOffset(int row, double halfColumn, SheetRenderStyle style)
+        {
+            if (row % 16 == 0)
+            {
+                return halfColumn * style.FullNotePercentage;
+            }
+            return halfColumn * style.NotFullNotePercentage;
+        }
+        protected override Pen PickPen(int row, SheetRenderStyle style)
+        {
+            switch (Math.Abs(row % 16))
+            {
+                case 4:
+                case 12:
+                    return style.NotePen1_16[0];
+                case 8:
+                    return style.NotePen1_16[1];
+                case 0:
+                    return style.NotePen1_1;
+                default:
+                    return style.NotePen1_16[2];
+            }
+        }
+        public override InteractAgent Agent => agent;
+        private class Agent_1_16 : InteractAgent
+        {
+            public override (int, int)? GetPositionBitmap(SheetRenderer sheetRenderer, Point bitmapPosition)
+            {
+                var absolute = new Point(
+                    bitmapPosition.X,
+                    sheetRenderer.BitmapHeight - bitmapPosition.Y + sheetRenderer.RenderFromY);
+
+                var result = (
+                    (int)Math.Round(absolute.Y / sheetRenderer.BitmapVerticalRenderDistance) * 6,
+                    (int)Math.Floor(absolute.X / sheetRenderer.BitmapColumnWidth)
+                    );
+                return result;
+            }
+        }
+    }
+
+    public class Strategy_1_24 : GridRenderStrategy
+    {
+        private InteractAgent agent = new Agent_1_24();
+        public override double GetVerticalDistance(SheetRenderer sheetRenderer) => sheetRenderer.BitmapHeight / (sheetRenderer.Zoom * 24);
+        protected override bool ShouldRenderText(int row) => row % 24 == 0;
+        protected override double PickOffset(int row, double halfColumn, SheetRenderStyle style)
+        {
+            if (row % 24 == 0)
+            {
+                return halfColumn * style.FullNotePercentage;
+            }
+            return halfColumn * style.NotFullNotePercentage;
+        }
+        protected override Pen PickPen(int row, SheetRenderStyle style)
+        {
+            switch (Math.Abs(row % 24))
+            {
+                case 6:
+                case 18:
+                    return style.NotePen1_24[0];
+                case 12:
+                    return style.NotePen1_24[1];
+                case 0:
+                    return style.NotePen1_1;
+                default:
+                    return style.NotePen1_24[2];
+            }
+        }
+        public override InteractAgent Agent => agent;
+        private class Agent_1_24 : InteractAgent
+        {
+            public override (int, int)? GetPositionBitmap(SheetRenderer sheetRenderer, Point bitmapPosition)
+            {
+                var absolute = new Point(
+                    bitmapPosition.X,
+                    sheetRenderer.BitmapHeight - bitmapPosition.Y + sheetRenderer.RenderFromY);
+
+                var result = (
+                    (int)Math.Round(absolute.Y / sheetRenderer.BitmapVerticalRenderDistance) * 4,
+                    (int)Math.Floor(absolute.X / sheetRenderer.BitmapColumnWidth)
+                    );
+                return result;
+            }
+        }
+    }
+
+    public class Strategy_1_32 : GridRenderStrategy
+    {
+        private InteractAgent agent = new Agent_1_32();
+        public override double GetVerticalDistance(SheetRenderer sheetRenderer) => sheetRenderer.BitmapHeight / (sheetRenderer.Zoom * 32);
+        protected override bool ShouldRenderText(int row) => row % 32 == 0;
+        protected override double PickOffset(int row, double halfColumn, SheetRenderStyle style)
+        {
+            if (row % 32 == 0)
+            {
+                return halfColumn * style.FullNotePercentage;
+            }
+            return halfColumn * style.NotFullNotePercentage;
+        }
+        protected override Pen PickPen(int row, SheetRenderStyle style)
+        {
+            switch (Math.Abs(row % 32))
+            {
+                case 8:
+                case 24:
+                    return style.NotePen1_32[0];
+                case 16:
+                    return style.NotePen1_32[1];
+                case 0:
+                    return style.NotePen1_1;
+                default:
+                    return style.NotePen1_32[2];
+            }
+        }
+        public override InteractAgent Agent => agent;
+        private class Agent_1_32 : InteractAgent
+        {
+            public override (int, int)? GetPositionBitmap(SheetRenderer sheetRenderer, Point bitmapPosition)
+            {
+                var absolute = new Point(
+                    bitmapPosition.X,
+                    sheetRenderer.BitmapHeight - bitmapPosition.Y + sheetRenderer.RenderFromY);
+
+                var result = (
+                    (int)Math.Round(absolute.Y / sheetRenderer.BitmapVerticalRenderDistance) * 3,
+                    (int)Math.Floor(absolute.X / sheetRenderer.BitmapColumnWidth)
+                    );
+                return result;
+            }
+        }
+    }
     public static class RectExtension
     {
         public static Rect Shrink(this Rect rect, double xShrinkRate, double yShrinkRate)

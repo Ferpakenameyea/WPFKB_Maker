@@ -303,12 +303,23 @@
         <GridSplitter Grid.Row="0" HorizontalAlignment="Stretch" VerticalAlignment="Bottom" Height="1" Background="Transparent" IsEnabled="False"></GridSplitter>
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="19*"/>
                 <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="19*"/>
                 <ColumnDefinition Width="1*"/>
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Column="0" BorderBrush="Black" BorderThickness="0,1,1,1" Name="rendererBorder">
+            <Border Grid.Column="0" BorderBrush="Black" BorderThickness="0,1,1,1" Background="Black" x:Name="scrollerBorder">
+                <Grid>
+                    <Image Name="scrollerImage" Stretch="Fill"/>
+                    <Image Name="scrollerLineImage" Stretch="Fill" 
+               MouseDown="ScrollerLineImageMouseDown"
+               MouseMove="ScrollerLineImageMouseMove"
+               MouseUp="ScrollerLineImageMouseUp"
+               MouseLeave="ScrollerLineImageMouseLeave"/>
+                </Grid>
+            </Border>
+
+            <Border Grid.Column="1" BorderBrush="Black" BorderThickness="0,1,1,1" Name="rendererBorder">
                 <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden">
                     <Canvas Name="imageCanvas" 
                             MouseWheel="ScrollSheetRenderer" 
@@ -319,17 +330,6 @@
                         <Rectangle x:Name="draggingBox" Fill="#6646A8F7" Stroke="#9917A4CB" Visibility="Hidden"/>
                     </Canvas>
                 </ScrollViewer>
-            </Border>
-
-            <Border Grid.Column="1" BorderBrush="Black" BorderThickness="0,1,1,1" Background="Black" x:Name="scrollerBorder">
-                <Grid>
-                    <Image Name="scrollerImage" Stretch="Fill"/>
-                    <Image Name="scrollerLineImage" Stretch="Fill" 
-                           MouseDown="ScrollerLineImageMouseDown"
-                           MouseMove="ScrollerLineImageMouseMove"
-                           MouseUp="ScrollerLineImageMouseUp"
-                           MouseLeave="ScrollerLineImageMouseLeave"/>
-                </Grid>
             </Border>
 
             <Border Grid.Column="2" BorderBrush="Black" BorderThickness="0,1,1,1">

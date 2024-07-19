@@ -647,10 +647,23 @@ namespace WPFKB_Maker
                     this.SheetRenderer.RenderType = RenderStrategyType.R1_2;
                     break;
                 case "1/6":
+                    this.SheetRenderer.RenderType = RenderStrategyType.R1_6;
+                    break;
                 case "1/8":
+                    this.SheetRenderer.RenderType = RenderStrategyType.R1_8;
+                    break;
                 case "1/12":
+                    this.SheetRenderer.RenderType = RenderStrategyType.R1_12;
+                    break;
+                case "1/16":
+                    this.SheetRenderer.RenderType = RenderStrategyType.R1_16;
+                    break;
                 case "1/24":
+                    this.SheetRenderer.RenderType = RenderStrategyType.R1_24;
+                    break;
                 case "1/32":
+                    this.SheetRenderer.RenderType = RenderStrategyType.R1_32;
+                    break;
                 default:
                     MessageBox.Show($"错误！未知的渲染模式：{selected.Tag}");
                     (sender as ComboBox).SelectedItem = e.RemovedItems[0];
