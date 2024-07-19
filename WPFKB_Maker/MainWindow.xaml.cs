@@ -76,7 +76,7 @@ namespace WPFKB_Maker
                 var renderer = new SheetRenderer(this.renderer,
                     (int)this.rendererBorder.ActualWidth,
                     (int)this.rendererBorder.ActualHeight,
-                    dpiX, dpiY);
+                    dpiX, dpiY, 144);
                 var player = new SheetPlayer(renderer);
                 this.SheetEditor = new SheetEditor(renderer, player);
 
@@ -260,44 +260,46 @@ namespace WPFKB_Maker
         }
         private void CanvasMouseMove(object sender, MouseEventArgs e)
         {
-            if (e.LeftButton == MouseButtonState.Pressed)
+            if (e.LeftButton != MouseButtonState.Pressed)
             {
-                if (this.isInDraggingMoving)
+                return;
+            }
+
+            if (this.isInDraggingMoving)
+            {
+                var selector = this.SheetEditor.Selector;
+                if (selector != this.dragStart)
                 {
-                    var selector = this.SheetEditor.Selector;
-                    if (selector != this.dragStart)
-                    {
-                        this.SheetEditor.MoveSelectionShadow((
-                            selector.Value.Item1 - this.dragStart.Value.Item1,
-                            selector.Value.Item2 - this.dragStart.Value.Item2));
+                    this.SheetEditor.MoveSelectionShadow((
+                        selector.Value.Item1 - this.dragStart.Value.Item1,
+                        selector.Value.Item2 - this.dragStart.Value.Item2));
 
-                        this.dragStart = selector;
-                    }
-                    return;
+                    this.dragStart = selector;
                 }
+                return;
+            }
 
-                var pos = e.GetPosition(this.imageCanvas);
-                var diff = pos - this.mouseDownPosition;
-                if (!isInDraggingSelection && diff.LengthSquared > DragThresholdSquared)
-                {
-                    isInDraggingSelection = true;
-                    draggingBox.Visibility = Visibility.Visible;
-                }
+            var pos = e.GetPosition(this.imageCanvas);
+            var diff = pos - this.mouseDownPosition;
+            if (!isInDraggingSelection && diff.LengthSquared > DragThresholdSquared)
+            {
+                isInDraggingSelection = true;
+                draggingBox.Visibility = Visibility.Visible;
+            }
 
-                if (isInDraggingSelection)
-                {
-                    double x = Math.Min(pos.X, this.mouseDownPosition.X);
-                    double y = Math.Min(pos.Y, this.mouseDownPosition.Y);
+            if (isInDraggingSelection)
+            {
+                double x = Math.Min(pos.X, this.mouseDownPosition.X);
+                double y = Math.Min(pos.Y, this.mouseDownPosition.Y);
 
-                    double width = Math.Abs(pos.X - this.mouseDownPosition.X);
-                    double height = Math.Abs(pos.Y - this.mouseDownPosition.Y);
+                double width = Math.Abs(pos.X - this.mouseDownPosition.X);
+                double height = Math.Abs(pos.Y - this.mouseDownPosition.Y);
 
-                    Canvas.SetLeft(draggingBox, x);
-                    Canvas.SetTop(draggingBox, y);
+                Canvas.SetLeft(draggingBox, x);
+                Canvas.SetTop(draggingBox, y);
 
-                    draggingBox.Width = width;
-                    draggingBox.Height = height;
-                }
+                draggingBox.Width = width;
+                draggingBox.Height = height;
             }
         }
         private void CanvasMouseDown(object sender, MouseButtonEventArgs e)
