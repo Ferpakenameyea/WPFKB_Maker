@@ -4,7 +4,9 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Runtime.Remoting.Messaging;
 using System.Windows;
+using System.Windows.Media.Animation;
 using WPFKB_Maker.Editing;
 using WPFKB_Maker.TFS.KBBeat;
 
@@ -45,6 +47,11 @@ namespace WPFKB_Maker.TFS.Rendering
         public (int, int)? ScreenToSheetPosition(Point screenPoint) => this.Renderer.Agent.GetPositionScreen(this.Renderer, screenPoint);
         public void RemoveNote((int, int) selector)
         {
+            if (selector.Item1 < 0)
+            {
+                return;
+            }
+
             var query = from n in this.Renderer.NotesToRender
                         where IsSelectedNote(n, selector)
                         orderby SelectNotePriority(n)
@@ -82,6 +89,11 @@ namespace WPFKB_Maker.TFS.Rendering
         }
         public void PutHoldNote((int, int) selector)
         {
+            if (selector.Item1 < 0)
+            {
+                return;
+            }
+
             if (HoldStart == null)
             {
                 HoldStart = selector;
@@ -133,6 +145,11 @@ namespace WPFKB_Maker.TFS.Rendering
         }
         public void PutHitNode((int, int) selector)
         {
+            if (selector.Item1 < 0)
+            {
+                return;
+            }
+
             var note = new HitNote(selector);
             bool res = false;
             lock (this.Sheet)
