@@ -168,13 +168,6 @@ namespace WPFKB_Maker.TFS
             this.RenderType = RenderStrategyType.R1_4;
 
             CompositionTarget.Rendering += OnRender;
-
-            //var timer = new DispatcherTimer()
-            //{
-            //    Interval = TimeSpan.FromMilliseconds((1000.0 / fps))
-            //};
-            //timer.Tick += OnRender;
-            //timer.Start();
         }
 
         private async void OnRender(object sender, EventArgs e)
@@ -415,7 +408,7 @@ namespace WPFKB_Maker.TFS
             {
                 if (ShouldRenderText(row))
                 {
-                    graphics.DrawString((row / 4).ToString(), 
+                    graphics.DrawString(this.PickBeatIndex(row).ToString(), 
                         sheetRenderer.Style.BeatFont, 
                         sheetRenderer.Style.BeatBrush,
                         new GDI.PointF(30, start.Y));
@@ -444,6 +437,7 @@ namespace WPFKB_Maker.TFS
         protected abstract float PickOffset(int row, float halfColumn, SheetRenderStyle style);
         protected abstract Pen PickPen(int row, SheetRenderStyle style);
         protected abstract bool ShouldRenderText(int row);
+        protected abstract int PickBeatIndex(int row);
 
         public abstract InteractAgent Agent { get; }
         public abstract class InteractAgent
@@ -504,6 +498,11 @@ namespace WPFKB_Maker.TFS
             }
         }
 
+        protected override int PickBeatIndex(int row)
+        {
+            return row / 4;
+        }
+
         public override InteractAgent Agent => agent;
         private class Agent_1_4 : InteractAgent
         {
@@ -544,6 +543,12 @@ namespace WPFKB_Maker.TFS
 
             return style.NotePen1_3[0];
         }
+
+        protected override int PickBeatIndex(int row)
+        {
+            return row / 3;
+        }
+
         public override InteractAgent Agent => agent;
         private class Agent_1_3 : InteractAgent
         {
@@ -584,6 +589,12 @@ namespace WPFKB_Maker.TFS
 
             return style.NotePen1_2[0];
         }
+
+        protected override int PickBeatIndex(int row)
+        {
+            return row / 2;
+        }
+
         public override InteractAgent Agent => agent;
         private class Agent_1_2 : InteractAgent
         {
@@ -600,6 +611,8 @@ namespace WPFKB_Maker.TFS
                 return result;
             }
         }
+
+
     }
 
     public class Strategy_1_6 : GridRenderStrategy
@@ -627,6 +640,12 @@ namespace WPFKB_Maker.TFS
                     return style.NotePen1_6[0];
             }
         }
+
+        protected override int PickBeatIndex(int row)
+        {
+            return row / 6;
+        }
+
         public override InteractAgent Agent => agent;
         private class Agent_1_6 : InteractAgent
         {
@@ -673,6 +692,12 @@ namespace WPFKB_Maker.TFS
                     return style.NotePen1_8[2];
             }
         }
+
+        protected override int PickBeatIndex(int row)
+        {
+            return row / 8;
+        }
+
         public override InteractAgent Agent => agent;
         private class Agent_1_8 : InteractAgent
         {
@@ -719,6 +744,12 @@ namespace WPFKB_Maker.TFS
                     return style.NotePen1_12[2];
             }
         }
+
+        protected override int PickBeatIndex(int row)
+        {
+            return row / 12;
+        }
+
         public override InteractAgent Agent => agent;
         private class Agent_1_12 : InteractAgent
         {
@@ -765,6 +796,12 @@ namespace WPFKB_Maker.TFS
                     return style.NotePen1_16[2];
             }
         }
+
+        protected override int PickBeatIndex(int row)
+        {
+            return row / 16;
+        }
+
         public override InteractAgent Agent => agent;
         private class Agent_1_16 : InteractAgent
         {
@@ -811,6 +848,12 @@ namespace WPFKB_Maker.TFS
                     return style.NotePen1_24[2];
             }
         }
+
+        protected override int PickBeatIndex(int row)
+        {
+            return row / 24;
+        }
+
         public override InteractAgent Agent => agent;
         private class Agent_1_24 : InteractAgent
         {
@@ -857,6 +900,12 @@ namespace WPFKB_Maker.TFS
                     return style.NotePen1_32[2];
             }
         }
+
+        protected override int PickBeatIndex(int row)
+        {
+            return row / 32;
+        }
+
         public override InteractAgent Agent => agent;
         private class Agent_1_32 : InteractAgent
         {
