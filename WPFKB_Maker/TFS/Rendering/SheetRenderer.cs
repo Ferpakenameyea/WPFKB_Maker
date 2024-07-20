@@ -322,13 +322,13 @@ namespace WPFKB_Maker.TFS
                     brush,
                     rect2.X, rect2.Y,
                     rect2.Width,
-                    rect2.Top - rect1.Bottom);
+                    rect1.Bottom - rect2.Top);
 
                 graphics.DrawRectangle(
                     pen,
                     rect2.X, rect2.Y,
                     rect2.Width,
-                    rect2.Top - rect1.Bottom);
+                    rect1.Bottom - rect2.Top);
             }
         }
         ~SheetRenderer()
