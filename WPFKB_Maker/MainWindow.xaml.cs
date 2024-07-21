@@ -20,7 +20,7 @@ namespace WPFKB_Maker
 {
     public partial class MainWindow : Window
     {
-        public const bool debug = true;
+        public const bool debug = false;
         private double dpiX;
         private double dpiY;
 

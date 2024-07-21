@@ -138,7 +138,11 @@ namespace WPFKB_Maker.TFS.Rendering
                 foreach (var position in e.Target)
                 {
                     int i = position.Item1 / (windowSizeBeat * 96);
-                    notes[i]++;
+                    if (i >= 0 && i < notes.Count)
+                    {
+                        notes[i]++;
+                    }
+
                 }
             }
             else
@@ -146,7 +150,10 @@ namespace WPFKB_Maker.TFS.Rendering
                 foreach (var position in e.Target)
                 {
                     int i = position.Item1 / (windowSizeBeat * 96);
-                    notes[i]--;
+                    if (i >= 0 && i < notes.Count)
+                    {
+                        notes[i]--;
+                    }
                 }
             }
 

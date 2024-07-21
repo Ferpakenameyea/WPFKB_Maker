@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Documents;
 
 namespace WPFKB_Maker.TFS.Sound
@@ -32,19 +34,29 @@ namespace WPFKB_Maker.TFS.Sound
             }
         }
 
-        public static void Initialize()
+        public static async void Initialize()
         {
-            data = File.ReadAllBytes("./strike.wav");
-            players = new DefaultObjectPool<StrikePlayer>(
-                new DefaultPooledObjectPolicy<StrikePlayer>());
-            List<StrikePlayer> preloadPlayers = new List<StrikePlayer>();
-            for (int i = 0; i < preload; i++)
+            try
             {
-                preloadPlayers.Add(players.Get());
+                await Task.Run(() =>
+                {
+                    data = File.ReadAllBytes("./strike.wav");
+                    players = new DefaultObjectPool<StrikePlayer>(
+                        new DefaultPooledObjectPolicy<StrikePlayer>());
+                    List<StrikePlayer> preloadPlayers = new List<StrikePlayer>();
+                    for (int i = 0; i < preload; i++)
+                    {
+                        preloadPlayers.Add(players.Get());
+                    }
+                    foreach (var preloaded in preloadPlayers)
+                    {
+                        players.Return(preloaded);
+                    }
+                });
             }
-            foreach (var preloaded in preloadPlayers)
+            catch (System.Exception e)
             {
-                players.Return(preloaded);
+                MessageBox.Show($"音频系统启动失败：{e}");
             }
         }
 
