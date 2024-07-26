@@ -28,6 +28,8 @@ namespace WPFKB_Maker.TFS.KBBeat
         public Sheet Sheet { get; set; }
         public static bool SavingInProgress { get; private set; } = false;
         [JsonIgnore] public string SavingPath { get; set; } = null;
+        
+        const string tempFile = "./tempproj";
 
         public Project(Meta meta, Sheet sheet, string savingPath)
         {
@@ -53,16 +55,40 @@ namespace WPFKB_Maker.TFS.KBBeat
             }
            
             Debug.console.Write($"正在创建项目文件 {savepath}");
-            using (var stream = new FileStream(savepath, FileMode.Create))
-            {
-                stream.Seek(0, SeekOrigin.Begin);
 
-                using (var zipArchive = new ZipArchive(stream, ZipArchiveMode.Create))
+            try
+            {
+                // use a temp file, because if we write the real file at
+                // start, if there's an exception, the original data will
+                // be lost immediately
+
+                using (var stream = new FileStream(tempFile, FileMode.Create))
                 {
-                    await SaveToZipNew(zipArchive, project)
-                        .ConfigureAwait(true);
+                    stream.Seek(0, SeekOrigin.Begin);
+
+                    using (var zipArchive = new ZipArchive(stream, ZipArchiveMode.Create))
+                    {
+                        await SaveToZipNew(zipArchive, project)
+                            .ConfigureAwait(true);
+                    }
+            
                 }
+
+                using (var stream = new FileStream(tempFile, FileMode.Open))
+                {
+                    using (var copyTarget = new FileStream(savepath, FileMode.Create))
+                    {
+                        await stream.CopyToAsync(copyTarget);
+                    }
+                }
+
+                new FileInfo(tempFile).Delete();
             }
+            catch (Exception e)
+            {
+                MessageBox.Show($"保存项目时出现异常：{e}", "保存失败", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+
             SavingInProgress = false;
         }
         private static async Task SaveToZipNew(ZipArchive zipArchive, Project project)
@@ -99,23 +125,23 @@ namespace WPFKB_Maker.TFS.KBBeat
         }
         public async static Task<Project> LoadProjectFromFile(string path)
         {
-            using (var stream = new FileStream(path, FileMode.Open))
+            try
             {
-                using (var archive = new ZipArchive(stream, ZipArchiveMode.Read))
+                using (var stream = new FileStream(path, FileMode.Open))
                 {
-                    try
+                    using (var archive = new ZipArchive(stream, ZipArchiveMode.Read))
                     {
                         var project = await LoadProjectFromZip(archive);
                         project.SavingPath = path;
                         return project;
                     }
-                    catch (Exception err)
-                    {
-                        MessageBox.Show($"项目加载失败：{err}");
-                        Debug.console.Write(err);
-                        return null;
-                    }
                 }
+            }
+            catch (Exception err)
+            {
+                MessageBox.Show($"项目加载失败：{err}");
+                Debug.console.Write(err);
+                return null;
             }
         }
         private static async Task<Project> LoadProjectFromZip(ZipArchive zipArchive)

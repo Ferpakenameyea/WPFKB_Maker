@@ -4,6 +4,7 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -424,15 +425,16 @@ namespace WPFKB_Maker
                 return;
             }
 
-            var button = sender as Button;
-            button.IsEnabled = false;
+            var source = sender as Control;
+            source.IsEnabled = false;
+            
             this.progressBar.Value = 30;
             this.currenStatusLabel.Content = "保存中";
             await Project.SaveNew(Project.Current)
                 .ConfigureAwait(true);
             this.progressBar.Value = 100;
             this.currenStatusLabel.Content = "就绪";
-            button.IsEnabled = true;
+            source.IsEnabled = true;
         }
         private async void OpenAnotherProjectButtonDown(object sender, RoutedEventArgs e)
         {
