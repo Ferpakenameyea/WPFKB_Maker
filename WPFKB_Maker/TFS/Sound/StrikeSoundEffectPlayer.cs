@@ -1,9 +1,15 @@
 ﻿using Microsoft.Extensions.ObjectPool;
 using NAudio.Wave;
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Documents;
 
 namespace WPFKB_Maker.TFS.Sound
@@ -11,9 +17,10 @@ namespace WPFKB_Maker.TFS.Sound
     public static class StrikeSoundEffectPlayer
     {
         private static ObjectPool<StrikePlayer> players;
+        private static List<StrikePlayer> playerList = new List<StrikePlayer>();
         private static byte[] data;
         private const int preload = 40;
-        private static Queue<StrikePlayer> queue = new Queue<StrikePlayer>();
+        public static float Volume { get; set; } = 1.0f;
 
         public static void Play()
         {
@@ -22,14 +29,9 @@ namespace WPFKB_Maker.TFS.Sound
 
         public static void PlayBatch(int count)
         {
-            for (int i = 0; i < count; i++)
-            {
-                queue.Enqueue(players.Get());
-            }
-            while(queue.Count > 0)
-            {
-                queue.Dequeue().Play();
-            }
+            var player = players.Get();
+            player.Volume = 0.3f + (count - 1) * 0.2f;
+            player.Play();
         }
 
         public static void Initialize()
@@ -48,18 +50,38 @@ namespace WPFKB_Maker.TFS.Sound
             }
         }
 
+        private class StrikePlayerPool : ObjectPool<StrikePlayer>
+        {
+            private Queue<StrikePlayer> playerList = new Queue<StrikePlayer>();
+            public int Size { get => playerList.Count; }
+
+            public override StrikePlayer Get()
+            {
+                return playerList.Count > 0 ? playerList.Dequeue() : new StrikePlayer();
+            }
+
+            public override void Return(StrikePlayer obj)
+            {
+                playerList.Enqueue(obj);
+            }
+        }
+
         private class StrikePlayer
         {
-            private WasapiOut device;
+            private IWavePlayer device;
             private WaveFileReader reader;
             private MemoryStream stream;
+            private VolumeWaveProvider16 volumeProvider;
+
+            public float Volume { get => volumeProvider.Volume; set => volumeProvider.Volume = value; }
 
             public StrikePlayer()
             {
-                this.device = new WasapiOut();
+                this.device = new WaveOutEvent();
                 this.stream = new MemoryStream(data);
                 this.reader = new WaveFileReader(stream);
-                this.device.Init(reader);
+                this.volumeProvider = new VolumeWaveProvider16(reader);
+                this.device.Init(this.volumeProvider);
                 this.device.PlaybackStopped += (sender, e) =>
                 {
                     this.stream.Position = 0;
@@ -73,8 +95,11 @@ namespace WPFKB_Maker.TFS.Sound
                 this.stream.Dispose();
                 this.reader.Dispose();
             }
-
-            public void Play() => device.Play();
+            
+            public void Play() 
+            {
+                device.Play();
+            }
         }
     }
 }

@@ -225,9 +225,9 @@ namespace WPFKB_Maker.TFS
             }
 
             var hold = note as HoldNote;
-            return
-                (hold.BasePosition.Item1 >= start && hold.BasePosition.Item1 <= end) ||
-                (hold.End.Item1 >= start && hold.End.Item1 <= end);
+
+            return Math.Max(hold.BasePosition.Item1, start) <= Math.Min(hold.End.Item1, end);
+                
         }
         private GDI.PointF NotePositionToBitmapPoint((int, int) position)
         {

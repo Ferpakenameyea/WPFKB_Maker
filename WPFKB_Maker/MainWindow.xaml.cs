@@ -674,5 +674,13 @@ namespace WPFKB_Maker
                     break;
             }
         }
+
+        private void VolumeChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (this.SheetPlayer != null)
+            {
+                this.SheetPlayer.Volume = (float)e.NewValue;
+            }
+        }
     }
 }

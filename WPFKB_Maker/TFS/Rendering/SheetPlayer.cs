@@ -17,7 +17,21 @@ namespace WPFKB_Maker.TFS.Rendering
     {
         private SheetRenderer Renderer { get; }
         public double CurrentTimeSecondsInPlay => this.timer.Seconds;
-        public float Volume { get => device.Volume; set => device.Volume = value; }
+        private float vol = 1.0f;
+        public float Volume {
+            get => device == null ? vol : device.AudioStreamVolume.GetChannelVolume(0);
+            set
+            {
+                this.vol = value;
+                if (device != null)
+                {
+                    for (int i = 0; i < device.AudioStreamVolume.ChannelCount; i++)
+                    {
+                        device.AudioStreamVolume.SetChannelVolume(i, vol);
+                    }
+                }
+            }
+        }
         public bool Playing { get; private set; } = false;
         private WasapiOut device;
         private WaveStream waveStream;
@@ -38,15 +52,25 @@ namespace WPFKB_Maker.TFS.Rendering
                 this.waveStream = KBMakerWaveStream.GetWaveStream(project.Meta.Ext, new MemoryStream(project.Meta.MusicFile));
                 this.device = new WasapiOut();
                 device.Init(this.waveStream);
+                float[] volumes = new float[device.AudioStreamVolume.ChannelCount];
+                for (int i = 0; i < volumes.Length; i++)
+                {
+                    volumes[i] = vol;
+                }
+                device.AudioStreamVolume.SetAllVolumes(volumes);
 
                 Debug.console.Write("播放器已加载项目");
             }
         }
+
+        private Stopwatch stopwatch = new Stopwatch();
+
         public SheetPlayer(SheetRenderer renderer)
         {
             this.Renderer = renderer;
             CompositionTarget.Rendering += Update;
         }
+
         private void Update(object sender, EventArgs e)
         {
             if (!this.Playing)
@@ -62,15 +86,22 @@ namespace WPFKB_Maker.TFS.Rendering
             var triggering = (from note in this.Renderer.Sheet.Values.AsParallel()
                                 where note.BasePosition.Item1 > lastTrigggered[note.BasePosition.Item2] &&
                                     note.BasePosition.Item1 <= triggerRow
-                                select note).ToList();
-            sum += triggering.Count;
+                                select note).AsEnumerable();
+            sum += triggering.Count();
             foreach (var note in triggering)
             {
                 lastTrigggered[note.BasePosition.Item2] = Math.Max(
                     lastTrigggered[note.BasePosition.Item2],
                     note.BasePosition.Item1);
             }
-            StrikeSoundEffectPlayer.PlayBatch(sum);
+            if (sum > 0)
+            {
+                Debug.console.Write($"PLAYING {sum} effects");
+                stopwatch.Restart();
+                StrikeSoundEffectPlayer.PlayBatch(sum);
+                stopwatch.Stop();
+                Debug.console.Write($"Used {stopwatch.ElapsedMilliseconds} ms to play");
+            }
         }
         ~SheetPlayer()
         {
