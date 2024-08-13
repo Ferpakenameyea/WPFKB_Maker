@@ -39,7 +39,7 @@ namespace SoundTouch
     public sealed class SoundTouch : IDisposable
     {
         #region Internal Members
-        internal const string SoundTouchLibrary = "SoundTouch.dll";
+        internal const string SoundTouchLibrary = "SoundTouchDLL_x64.dll";
         #endregion
 
         #region Private Members // hahaha what a curious region

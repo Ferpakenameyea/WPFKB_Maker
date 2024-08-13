@@ -35,6 +35,7 @@ namespace WPFKB_Maker.TFS.Rendering
         public Pen NotePen { get; set; }
         public Brush SelectedNoteBrush { get; set; }
         public Pen SelectedNotePen { get; set; }
+        public Brush DiscardZoneBrush { get; set; }
     }
 
     public static class SheetRenderStyles
@@ -116,6 +117,7 @@ namespace WPFKB_Maker.TFS.Rendering
 
             SelectedNoteBrush = new SolidBrush(Color.FromArgb(255, 255, 102)),
             SelectedNotePen = new Pen(new SolidBrush(Color.FromArgb(229, 232, 107)), 4),
+            DiscardZoneBrush = new SolidBrush(Color.FromArgb(100, 200, 30, 30))
         };
     }
 }

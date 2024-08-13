@@ -34,19 +34,29 @@ namespace WPFKB_Maker.TFS.Sound
             player.Play();
         }
 
-        public static void Initialize()
+        public static async void Initialize()
         {
-            data = File.ReadAllBytes("./strike.wav");
-            players = new DefaultObjectPool<StrikePlayer>(
-                new DefaultPooledObjectPolicy<StrikePlayer>());
-            List<StrikePlayer> preloadPlayers = new List<StrikePlayer>();
-            for (int i = 0; i < preload; i++)
+            try
             {
-                preloadPlayers.Add(players.Get());
+                await Task.Run(() =>
+                {
+                    data = File.ReadAllBytes("./strike.wav");
+                    players = new DefaultObjectPool<StrikePlayer>(
+                        new DefaultPooledObjectPolicy<StrikePlayer>());
+                    List<StrikePlayer> preloadPlayers = new List<StrikePlayer>();
+                    for (int i = 0; i < preload; i++)
+                    {
+                        preloadPlayers.Add(players.Get());
+                    }
+                    foreach (var preloaded in preloadPlayers)
+                    {
+                        players.Return(preloaded);
+                    }
+                });
             }
-            foreach (var preloaded in preloadPlayers)
+            catch (System.Exception e)
             {
-                players.Return(preloaded);
+                MessageBox.Show($"音频系统启动失败：{e}");
             }
         }
 

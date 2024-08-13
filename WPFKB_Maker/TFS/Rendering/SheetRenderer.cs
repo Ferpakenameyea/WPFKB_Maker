@@ -205,6 +205,7 @@ namespace WPFKB_Maker.TFS
                 this.DrawSelector(graphics);
                 await task;
                 this.DrawNotes(graphics);
+                this.DrawDiscardingZone(graphics);
             }
             this.bitmap.Lock();
 
@@ -215,6 +216,23 @@ namespace WPFKB_Maker.TFS
                 bitmap.BackBufferStride);
             this.bitmap.Unlock();
             
+        }
+
+        private void DrawDiscardingZone(GDI.Graphics graphics)
+        {
+            if (this.RenderFromY > 0)
+            {
+                return;
+            }
+
+            float top = (float)Math.Max(this.BitmapHeight + this.RenderFromY, 0);
+            graphics.FillRectangle(
+                Style.DiscardZoneBrush,
+                    new GDI.RectangleF(
+                        0F,
+                        top,
+                        (float)this.BitmapWidth,
+                        (float)this.BitmapHeight - top));
         }
 
         private bool ShouldRenderNote(Note note, int start, int end)
@@ -322,13 +340,13 @@ namespace WPFKB_Maker.TFS
                     brush,
                     rect2.X, rect2.Y,
                     rect2.Width,
-                    rect2.Top - rect1.Bottom);
+                    rect1.Bottom - rect2.Top);
 
                 graphics.DrawRectangle(
                     pen,
                     rect2.X, rect2.Y,
                     rect2.Width,
-                    rect2.Top - rect1.Bottom);
+                    rect1.Bottom - rect2.Top);
             }
         }
         ~SheetRenderer()
