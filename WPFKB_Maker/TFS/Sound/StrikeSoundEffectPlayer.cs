@@ -87,7 +87,7 @@ namespace WPFKB_Maker.TFS.Sound
 
             public StrikePlayer()
             {
-                this.device = new WaveOutEvent();
+                this.device = new WasapiOut(NAudio.CoreAudioApi.AudioClientShareMode.Shared, latency: 150, useEventSync: true);
                 this.stream = new MemoryStream(data);
                 this.reader = new WaveFileReader(stream);
                 this.volumeProvider = new VolumeWaveProvider16(reader);
