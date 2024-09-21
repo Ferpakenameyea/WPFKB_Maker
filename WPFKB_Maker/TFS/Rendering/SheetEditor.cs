@@ -268,7 +268,7 @@ namespace WPFKB_Maker.TFS.Rendering
                 this.Sheet.DeleteNote(position.Item1, position.Item2);
             }
 
-            foreach (var note in this.SelectedNotes)
+            foreach (var note in SelectedNotes.Where(note => note.BasePosition.Item2 >= 0 && note.BasePosition.Item2 < Sheet.Column))
             {
                 this.Sheet.PutNote(note.BasePosition.Item1, note.BasePosition.Item2, note);
             }

@@ -1,16 +1,12 @@
 ﻿using Microsoft.Extensions.ObjectPool;
-using NAudio.Wave;
-using System;
+using CSCore;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Globalization;
 using System.IO;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Documents;
+using CSCore.SoundOut;
+using CSCore.Codecs.WAV;
+using System;
 
 namespace WPFKB_Maker.TFS.Sound
 {
@@ -30,7 +26,7 @@ namespace WPFKB_Maker.TFS.Sound
         public static void PlayBatch(int count)
         {
             var player = players.Get();
-            player.Volume = 0.3f + (count - 1) * 0.2f;
+            player.Volume = Math.Min(1.0f, 0.3f + (count - 1) * 0.2f);
             player.Play();
         }
 
@@ -78,21 +74,24 @@ namespace WPFKB_Maker.TFS.Sound
 
         private class StrikePlayer
         {
-            private IWavePlayer device;
-            private WaveFileReader reader;
+            private ISoundOut device;
+            private IWaveSource reader;
             private MemoryStream stream;
-            private VolumeWaveProvider16 volumeProvider;
 
-            public float Volume { get => volumeProvider.Volume; set => volumeProvider.Volume = value; }
-
+            public float Volume { get => this.device.Volume; set => this.device.Volume = value; }
             public StrikePlayer()
             {
-                this.device = new WasapiOut(NAudio.CoreAudioApi.AudioClientShareMode.Shared, latency: 150, useEventSync: true);
+                this.device = new WasapiOut(
+                    eventSync: true, 
+                    shareMode: CSCore.CoreAudioAPI.AudioClientShareMode.Shared, 
+                    latency: 30);
+
                 this.stream = new MemoryStream(data);
-                this.reader = new WaveFileReader(stream);
-                this.volumeProvider = new VolumeWaveProvider16(reader);
-                this.device.Init(this.volumeProvider);
-                this.device.PlaybackStopped += (sender, e) =>
+                this.reader = new WaveFileReader(this.stream)
+                    .ToSampleSource()
+                    .ToWaveSource();
+                this.device.Initialize(this.reader);
+                this.device.Stopped += (sender, e) =>
                 {
                     this.stream.Position = 0;
                     players.Return(this);

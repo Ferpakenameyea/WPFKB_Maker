@@ -84,7 +84,11 @@ namespace WPFKB_Maker.TFS.Rendering
 
             int sum = 0;
             var triggering = (from note in this.Renderer.Sheet.Values.AsParallel()
-                                where note.BasePosition.Item1 > lastTrigggered[note.BasePosition.Item2] &&
+                                where 
+                                    // here might triggers an IndexOutOfRangeException
+                                    note.BasePosition.Item2 >= 0 && note.BasePosition.Item2 < lastTrigggered.Length &&
+                                    // =============================================== thus added this
+                                    note.BasePosition.Item1 > lastTrigggered[note.BasePosition.Item2] &&
                                     note.BasePosition.Item1 <= triggerRow
                                 select note).AsEnumerable();
             sum += triggering.Count();
