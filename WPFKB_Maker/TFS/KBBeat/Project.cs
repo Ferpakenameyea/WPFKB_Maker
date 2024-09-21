@@ -1,13 +1,10 @@
-﻿using NAudio.Wave;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using System.Net.Http.Headers;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
@@ -56,13 +53,24 @@ namespace WPFKB_Maker.TFS.KBBeat
            
             Debug.console.Write($"正在创建项目文件 {savepath}");
 
+            var target = new FileInfo(savepath);
+            if (target.Exists)
+            {
+                await OverrideOldProject(project, target);
+            }
+            else
+            {
+                await CreateNewProject(project, target);
+            }
+
+            SavingInProgress = false;
+        }
+
+        private static async Task CreateNewProject(Project project, FileInfo file)
+        {
             try
             {
-                // use a temp file, because if we write the real file at
-                // start, if there's an exception, the original data will
-                // be lost immediately
-
-                using (var stream = new FileStream(tempFile, FileMode.Create))
+                using (var stream = file.Create())
                 {
                     stream.Seek(0, SeekOrigin.Begin);
 
@@ -71,26 +79,64 @@ namespace WPFKB_Maker.TFS.KBBeat
                         await SaveToZipNew(zipArchive, project)
                             .ConfigureAwait(true);
                     }
-            
-                }
 
-                using (var stream = new FileStream(tempFile, FileMode.Open))
-                {
-                    using (var copyTarget = new FileStream(savepath, FileMode.Create))
-                    {
-                        await stream.CopyToAsync(copyTarget);
-                    }
                 }
-
-                new FileInfo(tempFile).Delete();
             }
             catch (Exception e)
             {
                 MessageBox.Show($"保存项目时出现异常：{e}", "保存失败", MessageBoxButton.OK, MessageBoxImage.Error);
             }
-
-            SavingInProgress = false;
         }
+
+        private static async Task OverrideOldProject(Project project, FileInfo file)
+        {
+            FileInfo fallback = new FileInfo("./temp.kbpwpf");
+
+            try
+            {
+                using (var stream = fallback.Create())
+                {
+                    using (var old = file.OpenRead())
+                    {
+                        await old.CopyToAsync(stream).ConfigureAwait(true);
+                    }
+                }
+            } 
+            catch (Exception e)
+            {
+                MessageBox.Show($"保存项目时出现异常：{e}", "保存失败", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+
+            try
+            {
+                using (var stream = file.Open(FileMode.Open))
+                {
+                    stream.Seek(0, SeekOrigin.Begin);
+
+                    using (var zipArchive = new ZipArchive(stream, ZipArchiveMode.Update))
+                    {
+                        await OverrideToZip(zipArchive, project)
+                            .ConfigureAwait(true);
+                    }
+
+                }
+            }
+            catch (Exception e)
+            {
+                MessageBox.Show($"保存项目时出现异常：{e}", "保存失败", MessageBoxButton.OK, MessageBoxImage.Error);
+                try
+                {
+                    using (var stream = file.OpenWrite())
+                    {
+                        using (var fallbackStream = fallback.OpenRead())
+                        {
+                            await fallbackStream.CopyToAsync(stream).ConfigureAwait(true);
+                        }
+                    }
+                } catch (Exception) { }
+            }
+        }
+
         private static async Task SaveToZipNew(ZipArchive zipArchive, Project project)
         {
             byte[] metaByte = Array.Empty<byte>(), sheetByte = Array.Empty<byte>();
@@ -123,6 +169,48 @@ namespace WPFKB_Maker.TFS.KBBeat
             }
             Debug.console.Write("保存成功");
         }
+
+        private static async Task OverrideToZip(ZipArchive zipArchive, Project project)
+        {
+            byte[] metaByte = Array.Empty<byte>(), sheetByte = Array.Empty<byte>();
+            Debug.console.Write("正在序列化信息……");
+            await Task.Run(() =>
+            {
+                var metaJson = JsonConvert.SerializeObject(project.Meta);
+                var sheetJson = JsonConvert.SerializeObject(project.Sheet, Sheet.SheetJsonSerializerSettings);
+                metaByte = Encoding.UTF8.GetBytes(metaJson);
+                sheetByte = Encoding.UTF8.GetBytes(sheetJson);
+            }).ConfigureAwait(true);
+
+            Debug.console.Write("正在写入文件……");
+            var metaEntry = zipArchive.CreateEntry("meta");
+            using (var stream = metaEntry.Open())
+            {
+                await stream.WriteAsync(metaByte, 0, metaByte.Length)
+                    .ConfigureAwait(true);
+            }
+            var sheetEntry = zipArchive.CreateEntry("sheet");
+            using (var stream = sheetEntry.Open())
+            {
+                await stream.WriteAsync(sheetByte, 0, sheetByte.Length)
+                    .ConfigureAwait(true);
+            }
+
+            var musicEntry = zipArchive.GetEntry("music");
+
+            if (musicEntry == null)
+            {
+                // we try not to resave music again
+                using (var stream = musicEntry.Open())
+                {
+                    await stream.WriteAsync(project.Meta.MusicFile, 0, project.Meta.MusicFile.Length)
+                        .ConfigureAwait(true);
+                }
+            }
+
+            Debug.console.Write("保存成功");
+        }
+
         public async static Task<Project> LoadProjectFromFile(string path)
         {
             try

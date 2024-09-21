@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -202,8 +203,13 @@ namespace WPFKB_Maker
                 string extensionName = new FileInfo(this.SelectedFilePath).Extension;
                 button.Content = "正在读取音乐文件……";
                 double len = 0;
-                
-                await Task.Run(() =>
+
+                var cancellationTokenSource = new CancellationTokenSource();
+
+                var timeoutTask = Task.Delay(20000, cancellationTokenSource.Token);
+                // 20 seconds
+
+                var readTask = Task.Run(() =>
                 {
                     data = File.ReadAllBytes(this.SelectedFilePath);
                     using (MemoryStream ms = new MemoryStream(data))
@@ -211,11 +217,18 @@ namespace WPFKB_Maker
                         using (var reader = KBMakerWaveStream.GetWaveStream(this.SelectedFilePath))
                         {
                             waveFormat = reader.WaveFormat;
-                            len = reader.TotalTime.TotalSeconds;   
+                            len = reader.TotalTime.TotalSeconds;
                         }
                     }
-                }).ConfigureAwait(true);
-                
+                }, cancellationTokenSource.Token);
+
+                if (await Task.WhenAny(timeoutTask, readTask).ConfigureAwait(true) == timeoutTask)
+                {
+                    cancellationTokenSource.Cancel();
+                    throw new TimeoutException("读取音乐时超时!");
+                }
+
+                cancellationTokenSource.Cancel();
                 button.Content = "正在构建项目……";
 
                 var meta = this.metaBuilder
